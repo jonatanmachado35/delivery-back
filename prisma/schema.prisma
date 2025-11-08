@@ -1,0 +1,262 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+
+  extensions = [postgis]
+}
+
+model User {
+  id          Int          @id @default(autoincrement())
+  email       String       @unique
+  password    String
+  role        Role         @default(COMPANY)
+  status      UserStatus   @default(ACTIVE)
+  information String       @default("")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now()) @updatedAt
+  Balance     Balance      @relation(fields: [balanceId], references: [id])
+  Extract     Extract[]
+  balanceId   Int
+  DeliveryMan DeliveryMan?
+  Company     Company?
+  Billing     Billing[]
+
+  @@map("users")
+}
+
+model Address {
+  id         Int      @id @default(autoincrement())
+  street     String
+  number     String
+  city       String
+  state      String
+  zipCode    String
+  country    String   @default("Brasil")
+  complement String?  @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  localization   Unsupported("geography(Point, 4326)")
+  Company        Company?
+  DeliveryMan    DeliveryMan?
+  ClientDelivery Delivery[]                            @relation("ClientAddress")
+  OriginDelivery Delivery[]                            @relation("OriginAddress")
+
+  @@index([localization], name: "location_idx", type: Gist)
+  @@map("addresses")
+}
+
+model Company {
+  id        Int        @id @default(autoincrement())
+  name      String
+  phone     String
+  cnpj      String     @unique
+  idAddress Int        @unique
+  Address   Address    @relation(fields: [idAddress], references: [id])
+  idUser    Int        @unique @map("id_user")
+  User      User       @relation(fields: [idUser], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @default(now()) @updatedAt
+  Delivery  Delivery[]
+
+  @@map("companies")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  NO_DOCUMENTS
+  BLOCKED
+}
+
+model VehicleType {
+  id                Int       @id @default(autoincrement())
+  type              String    @unique
+  tarifaBase        Decimal   @map("tarifa_base") @db.Decimal(5, 2)
+  valorKMAdicional  Decimal   @map("valor_km_adicional") @db.Decimal(5, 2)
+  paradaAdicional   Decimal   @map("parada_adicional") @db.Decimal(5, 2) @default(0)
+  ajudanteAdicional Decimal   @map("ajudante_adicional") @db.Decimal(5, 2) @default(0)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+  vehicle           Vehicle[]
+
+  @@map("vehicle_types")
+}
+
+model Balance {
+  id        Int      @id @default(autoincrement())
+  amount    Decimal  @default(0) @db.Decimal(15, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  User User[]
+
+  @@map("balances")
+}
+
+model Extract {
+  id        Int         @id @default(autoincrement())
+  amount    Decimal     @default(0) @db.Decimal(15, 2)
+  type      ExtractType
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @default(now()) @updatedAt
+  User      User?       @relation(fields: [userId], references: [id])
+  userId    Int?
+
+  @@map("extracts")
+}
+
+enum ExtractType {
+  DEPOSIT
+  WITHDRAW
+  DEBIT
+  CREDIT
+}
+
+enum Role {
+  ADMIN
+  DELIVERY
+  COMPANY
+}
+
+model DeliveryMan {
+  id        Int        @id @default(autoincrement())
+  name      String
+  cpf       String     @unique
+  dob       DateTime   @map("date_of_birth") @db.Date
+  phone     String
+  Address   Address    @relation(fields: [idAddress], references: [id])
+  Vehicle   Vehicle    @relation(fields: [vehicleId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @default(now()) @updatedAt
+  User      User       @relation(fields: [userId], references: [id])
+  userId    Int        @unique @map("id_user")
+  Delivery  Delivery[]
+  idAddress Int        @unique
+  vehicleId Int        @unique
+
+  @@map("deliverymen")
+}
+
+model Billing {
+  id          Int           @id @default(autoincrement())
+  key         String        @unique @default(ulid())
+  amount      Decimal       @db.Decimal(15, 2)
+  type        BillingType
+  status      BillingStatus
+  description String?       @default("")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now()) @updatedAt
+  userId      Int?
+  User        User?         @relation(fields: [userId], references: [id])
+  Items       BillingItem[]
+  File        File?         @relation(fields: [fileId], references: [id])
+  fileId      Int?          @unique
+
+  @@map("billings")
+}
+
+model File {
+  id        Int      @id @default(autoincrement())
+  filename  String
+  path      String
+  mimetype  String
+  publicId  String
+  size      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  Billing   Billing?
+
+  @@map("files")
+}
+
+model BillingItem {
+  id         Int      @id @default(autoincrement())
+  Delivery   Delivery @relation(fields: [deliveryId], references: [id])
+  Billing    Billing  @relation(fields: [billingId], references: [id])
+  price      Decimal  @db.Decimal(15, 2)
+  deliveryId Int
+  billingId  Int
+}
+
+enum BillingType {
+  INCOME // renda
+  EXPENSE // despesa
+}
+
+enum BillingStatus {
+  PENDING
+  PAID
+  CANCELED
+  FAILED
+}
+
+model Vehicle {
+  id            Int          @id @default(autoincrement())
+  licensePlate  String       @unique @map("license_plate") @db.VarChar(8) // "placa"
+  brand         String       @db.VarChar(30) // "marca"
+  model         String       @db.VarChar(50) // "modelo"
+  year          String       @db.VarChar(4) // "ano" (manufacturing year)
+  color         String       @db.VarChar(20) // "cor"
+  Type          VehicleType  @relation(fields: [vehicleTypeId], references: [id])
+  vehicleTypeId Int          @map("vehicle_type_id")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at")
+  DeliveryMan   DeliveryMan?
+
+  @@map("vehicles")
+}
+
+enum DeliveryStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
+model Router {
+  id         Int                                   @id @default(autoincrement())
+  coord      Unsupported("geography(Point, 4326)")
+  createdAt  DateTime                              @default(now())
+  updatedAt  DateTime                              @default(now()) @updatedAt
+  Delivery   Delivery?                             @relation(fields: [deliveryId], references: [id])
+  deliveryId Int? @map("delivery_id")
+
+  @@map("routes")
+}
+
+model Delivery {
+  id              Int            @id @default(autoincrement())
+  code            String         @unique
+  height          Float?
+  width           Float?
+  length          Float?
+  weight          Float?
+  information     String
+  isFragile       Boolean        @default(false)
+  price           Decimal        @db.Decimal(15, 2)
+  companyId       Int
+  Company         Company        @relation(fields: [companyId], references: [id])
+  email           String         @db.VarChar(250)
+  telefone        String         @db.VarChar(30)
+  ClientAddress   Address        @relation("ClientAddress", fields: [idClientAddress], references: [id])
+  OriginAddress   Address        @relation("OriginAddress", fields: [idOriginAddress], references: [id])
+  status          DeliveryStatus @default(PENDING)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+  completedAt     DateTime?
+  Routes          Router[]
+  DeliveryMan     DeliveryMan?   @relation(fields: [deliveryManId], references: [id])
+  deliveryManId   Int?
+  vehicleType     String
+  idClientAddress Int            @map("id_client_address")
+  idOriginAddress Int            @map("id_origin_address")
+  BillingItem     BillingItem[]
+
+  @@map("deliveries")
+}

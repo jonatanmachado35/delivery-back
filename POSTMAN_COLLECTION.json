@@ -1,0 +1,267 @@
+{
+  "info": {
+    "name": "Sistema de Entregas API",
+    "description": "Collection para testar a API do Sistema de Entregas",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('token', jsonData.token);",
+                  "    console.log('Token salvo:', jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"empresa@exemplo.com\",\n  \"password\": \"senha123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Endpoint para fazer login e obter o token de autenticação"
+          }
+        },
+        {
+          "name": "Signup Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"empresa@exemplo.com\",\n  \"password\": \"senha123\",\n  \"name\": \"Minha Empresa\",\n  \"phone\": \"(11) 99999-9999\",\n  \"cnpj\": \"12.345.678/0001-90\",\n  \"address\": {\n    \"street\": \"Rua Exemplo\",\n    \"number\": \"123\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01234-567\",\n    \"complement\": \"Sala 10\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/signup/company",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "signup", "company"]
+            }
+          }
+        },
+        {
+          "name": "Signup Deliveryman",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"entregador@exemplo.com\",\n  \"password\": \"senha123\",\n  \"name\": \"João Entregador\",\n  \"phone\": \"(11) 99999-9999\",\n  \"cpf\": \"123.456.789-00\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"address\": {\n    \"street\": \"Rua Exemplo\",\n    \"number\": \"456\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01234-567\"\n  },\n  \"vehicle\": {\n    \"licensePlate\": \"ABC1234\",\n    \"brand\": \"Honda\",\n    \"model\": \"CG 160\",\n    \"year\": \"2023\",\n    \"color\": \"Azul\",\n    \"vehicleType\": \"Moto\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/signup/deliveryman",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "signup", "deliveryman"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delivery",
+      "item": [
+        {
+          "name": "Listar Entregas",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/delivery?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["delivery"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "disabled": true
+                },
+                {
+                  "key": "code",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Simular Entrega",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleType\": \"Carro\",\n  \"clientAddress\": {\n    \"street\": \"Rua do Destinatário\",\n    \"number\": \"789\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01234-567\"\n  },\n  \"useAddressCompany\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/delivery/simulate",
+              "host": ["{{base_url}}"],
+              "path": ["delivery", "simulate"]
+            }
+          }
+        },
+        {
+          "name": "Criar Entrega",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleType\": \"Carro\",\n  \"height\": 30,\n  \"width\": 40,\n  \"length\": 50,\n  \"weight\": 5.5,\n  \"information\": \"Produto frágil - manuseio cuidadoso\",\n  \"email\": \"cliente@exemplo.com\",\n  \"telefone\": \"(11) 98765-4321\",\n  \"isFragile\": true,\n  \"clientAddress\": {\n    \"street\": \"Rua do Destinatário\",\n    \"number\": \"789\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01234-567\"\n  },\n  \"useAddressCompany\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/delivery",
+              "host": ["{{base_url}}"],
+              "path": ["delivery"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vehicle Types",
+      "item": [
+        {
+          "name": "Listar Tipos de Veículos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/vehicle-types?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["vehicle-types"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+
