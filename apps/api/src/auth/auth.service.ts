@@ -105,8 +105,12 @@ export class AuthService {
       }
 
       const vehicleTypeId = vehicleType.id;
-      const requiresDocument =
-        (vehicleType.type ?? '').toLowerCase() !== 'bike';
+      const normalizedVehicleType = (vehicleType.type ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+      const requiresDocument = normalizedVehicleType !== 'bike';
       const initialStatus = requiresDocument
         ? (UserStatus.NO_DOCUMENTS as UserStatus)
         : UserStatus.ACTIVE;
