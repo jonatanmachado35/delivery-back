@@ -126,18 +126,17 @@ export class UserService {
       throw new NotFoundException(`usuario com codigo '${id}' não encontrado`);
     }
 
-    const coordinates = await this.locationService.getAddressLocalization(
-      this.prisma,
-      user.Company
-        ? user.Company.Address.id
-        : (user.DeliveryMan?.Address.id as number),
-    );
+    const ownerAddress = user.Company?.Address ?? user.DeliveryMan?.Address;
 
-    (
-      (user.Company?.Address ?? user.DeliveryMan?.Address) as Address & {
-        localization: ILocalization;
-      }
-    ).localization = coordinates;
+    if (ownerAddress?.id) {
+      const coordinates = await this.locationService.getAddressLocalization(
+        this.prisma,
+        ownerAddress.id,
+      );
+
+      ;(ownerAddress as Address & { localization: ILocalization }).localization =
+        coordinates;
+    }
 
     return user as unknown as User;
   }
