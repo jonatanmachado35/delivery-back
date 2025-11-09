@@ -10,6 +10,7 @@ import {
   Max,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { message } from '../../utils/message';
@@ -98,40 +99,45 @@ export class DeliverymanDto {
   //vehicle
 
   @ApiProperty({ description: 'Placa do veículo' })
+  @ValidateIf(shouldValidateVehicleField('licensePlate'))
   @IsString({
     message: message.isString,
   })
   @IsNotEmpty({ message: message.isNotEmpty })
-  licensePlate: string;
+  licensePlate?: string;
 
   @ApiProperty({ description: 'Marca do veículo' })
+  @ValidateIf(shouldValidateVehicleField('brand'))
   @IsString({
     message: message.isString,
   })
   @IsNotEmpty({ message: message.isNotEmpty })
-  brand: string;
+  brand?: string;
 
   @ApiProperty({ description: 'Modelo do veículo' })
+  @ValidateIf(shouldValidateVehicleField('model'))
   @IsString({
     message: message.isString,
   })
   @IsNotEmpty({ message: message.isNotEmpty })
-  model: string;
+  model?: string;
 
   @ApiProperty({ description: 'Ano de fabricação do veículo' })
+  @ValidateIf(shouldValidateVehicleField('year'))
   @IsString({
     message: message.isString,
   })
   @IsNotEmpty({ message: message.isNotEmpty })
   @Matches(/^\d{4}$/, { message: 'Ano deve conter 4 dígitos' })
-  year: string;
+  year?: string;
 
   @ApiProperty({ description: 'Cor do veículo' })
+  @ValidateIf(shouldValidateVehicleField('color'))
   @IsString({
     message: message.isString,
   })
   @IsNotEmpty({ message: message.isNotEmpty })
-  color: string;
+  color?: string;
 
   @ApiProperty({ description: 'Tipo do veículo' })
   @IsNotEmpty({ message: message.isNotEmpty })
@@ -161,4 +167,13 @@ export class CurrencyLocationDto {
   })
   @Max(180, { message: message.isMax })
   longitude: number;
+}
+
+function shouldValidateVehicleField(
+  field: keyof DeliverymanDto,
+): (object: DeliverymanDto) => boolean {
+  return (object: DeliverymanDto) => {
+    const vehicleType = (object.vehicleType ?? '').trim().toLowerCase();
+    return vehicleType !== 'bike' || object[field] !== undefined;
+  };
 }

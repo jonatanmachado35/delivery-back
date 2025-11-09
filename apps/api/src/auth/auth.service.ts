@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
@@ -10,7 +11,14 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CompanyDto } from './dto/company.dto';
 import { LocationService } from '../location/location.service';
-import { Company, DeliveryMan, Role, User, UserStatus } from '@prisma/client';
+import {
+  Company,
+  DeliveryMan,
+  Prisma,
+  Role,
+  User,
+  UserStatus,
+} from '@prisma/client';
 import { DeliverymanDto } from './dto/deliverymen.dto';
 
 @Injectable()
@@ -110,7 +118,8 @@ export class AuthService {
         .replace(/[\u0300-\u036f]/g, '')
         .trim()
         .toLowerCase();
-      const requiresDocument = normalizedVehicleType !== 'bike';
+      const isBike = normalizedVehicleType === 'bike';
+      const requiresDocument = !isBike;
       const initialStatus = requiresDocument
         ? (UserStatus.NO_DOCUMENTS as UserStatus)
         : UserStatus.ACTIVE;
@@ -121,13 +130,19 @@ export class AuthService {
           - Aguardando desbloqueio`
         : 'Cadastro liberado automaticamente';
 
-      const existingVehicle = await tx.vehicle.findFirst({
-        where: { licensePlate: deliveryman.licensePlate },
-        select: { id: true },
-      });
+      const cleanLicensePlate = deliveryman.licensePlate
+        ? deliveryman.licensePlate.trim().toUpperCase()
+        : undefined;
 
-      if (existingVehicle) {
-        throw new ConflictException('Placa já cadastrada');
+      if (cleanLicensePlate) {
+        const existingVehicle = await tx.vehicle.findUnique({
+          where: { licensePlate: cleanLicensePlate },
+          select: { id: true },
+        });
+
+        if (existingVehicle) {
+          throw new ConflictException('Placa já cadastrada');
+        }
       }
 
       const salt = await bcrypt.genSalt(12);
@@ -176,14 +191,41 @@ export class AuthService {
 
       const idAddress = address?.id;
 
+      const sanitizeField = (value?: string): string | undefined => {
+        if (!value) {
+          return undefined;
+        }
+
+        const trimmed = value.trim();
+        return trimmed.length ? trimmed : undefined;
+      };
+
+      const licensePlate =
+        cleanLicensePlate ?? (isBike ? await this.generateBikePlate(tx) : undefined);
+      const brand =
+        sanitizeField(deliveryman.brand) ?? (isBike ? 'Bike' : undefined);
+      const model =
+        sanitizeField(deliveryman.model) ?? (isBike ? 'Bike' : undefined);
+      const year =
+        sanitizeField(deliveryman.year) ??
+        (isBike ? new Date().getFullYear().toString() : undefined);
+      const color =
+        sanitizeField(deliveryman.color) ?? (isBike ? 'N/A' : undefined);
+
+      if (!licensePlate || !brand || !model || !year || !color) {
+        throw new UnprocessableEntityException(
+          'Informações do veículo são obrigatórias para o tipo selecionado',
+        );
+      }
+
       const { id: vehicleId } = await tx.vehicle.create({
         data: {
-          brand: deliveryman.brand,
-          color: deliveryman.color,
-          licensePlate: deliveryman.licensePlate,
-          model: deliveryman.model,
+          brand,
+          color,
+          licensePlate,
+          model,
           vehicleTypeId,
-          year: deliveryman.year,
+          year,
         },
         select: {
           id: true,
@@ -215,6 +257,22 @@ export class AuthService {
         },
       });
     });
+  }
+
+  private async generateBikePlate(
+    tx: Prisma.TransactionClient,
+  ): Promise<string> {
+    while (true) {
+      const candidate = `BIKE${Math.floor(1000 + Math.random() * 9000)}`;
+      const existingPlate = await tx.vehicle.findUnique({
+        where: { licensePlate: candidate },
+        select: { id: true },
+      });
+
+      if (!existingPlate) {
+        return candidate;
+      }
+    }
   }
 
   async login(
