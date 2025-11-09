@@ -74,13 +74,19 @@ enum UserStatus {
   BLOCKED
 }
 
+enum DeliverymanDocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model VehicleType {
   id                Int       @id @default(autoincrement())
   type              String    @unique
   tarifaBase        Decimal   @map("tarifa_base") @db.Decimal(5, 2)
   valorKMAdicional  Decimal   @map("valor_km_adicional") @db.Decimal(5, 2)
-  paradaAdicional   Decimal   @map("parada_adicional") @db.Decimal(5, 2) @default(0)
-  ajudanteAdicional Decimal   @map("ajudante_adicional") @db.Decimal(5, 2) @default(0)
+  paradaAdicional   Decimal   @default(0) @map("parada_adicional") @db.Decimal(5, 2)
+  ajudanteAdicional Decimal   @default(0) @map("ajudante_adicional") @db.Decimal(5, 2)
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
   vehicle           Vehicle[]
@@ -125,20 +131,21 @@ enum Role {
 }
 
 model DeliveryMan {
-  id        Int        @id @default(autoincrement())
+  id        Int                   @id @default(autoincrement())
   name      String
-  cpf       String     @unique
-  dob       DateTime   @map("date_of_birth") @db.Date
+  cpf       String                @unique
+  dob       DateTime              @map("date_of_birth") @db.Date
   phone     String
-  Address   Address    @relation(fields: [idAddress], references: [id])
-  Vehicle   Vehicle    @relation(fields: [vehicleId], references: [id])
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @default(now()) @updatedAt
-  User      User       @relation(fields: [userId], references: [id])
-  userId    Int        @unique @map("id_user")
+  Address   Address               @relation(fields: [idAddress], references: [id])
+  Vehicle   Vehicle               @relation(fields: [vehicleId], references: [id])
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @default(now()) @updatedAt
+  User      User                  @relation(fields: [userId], references: [id])
+  userId    Int                   @unique @map("id_user")
   Delivery  Delivery[]
-  idAddress Int        @unique
-  vehicleId Int        @unique
+  idAddress Int                   @unique
+  vehicleId Int                   @unique
+  Documents DeliverymanDocument[]
 
   @@map("deliverymen")
 }
@@ -162,17 +169,33 @@ model Billing {
 }
 
 model File {
-  id        Int      @id @default(autoincrement())
-  filename  String
-  path      String
-  mimetype  String
-  publicId  String
-  size      Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-  Billing   Billing?
+  id                  Int                  @id @default(autoincrement())
+  filename            String
+  path                String
+  mimetype            String
+  publicId            String
+  size                Int
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @default(now()) @updatedAt
+  Billing             Billing?
+  DeliverymanDocument DeliverymanDocument?
 
   @@map("files")
+}
+
+model DeliverymanDocument {
+  id            Int                       @id @default(autoincrement())
+  deliveryman   DeliveryMan               @relation(fields: [deliverymanId], references: [id])
+  deliverymanId Int                       @map("deliveryman_id")
+  type          String
+  description   String                    @default("")
+  status        DeliverymanDocumentStatus @default(PENDING)
+  File          File                      @relation(fields: [fileId], references: [id])
+  fileId        Int                       @unique @map("file_id")
+  createdAt     DateTime                  @default(now()) @map("created_at")
+  updatedAt     DateTime                  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("deliveryman_documents")
 }
 
 model BillingItem {
@@ -225,7 +248,7 @@ model Router {
   createdAt  DateTime                              @default(now())
   updatedAt  DateTime                              @default(now()) @updatedAt
   Delivery   Delivery?                             @relation(fields: [deliveryId], references: [id])
-  deliveryId Int? @map("delivery_id")
+  deliveryId Int?                                  @map("delivery_id")
 
   @@map("routes")
 }

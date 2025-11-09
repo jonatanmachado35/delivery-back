@@ -1,9 +1,11 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -11,6 +13,7 @@ import { AdminGuard } from '../admin/admin.guard';
 import { UserService } from './user.service';
 import { IUserQueryParams } from './dto/filter';
 import { ApiTags } from '@nestjs/swagger';
+import { UpdateUserStatusDto } from './dto/update-status.dto';
 
 @Controller('users')
 @ApiTags('Users')
@@ -31,5 +34,14 @@ export class UserController {
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.userService.findOne(+id);
+  }
+
+  @Patch(':id/status')
+  @UseGuards(AdminGuard)
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateUserStatusDto,
+  ): Promise<void> {
+    await this.userService.updateStatus(+id, body);
   }
 }

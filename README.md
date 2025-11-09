@@ -214,6 +214,44 @@ Authorization: Bearer {{token}}
 - `originCity`: cidade de origem
 - `clientCity`: cidade do cliente
 
+#### **Enviar Documentos do Entregador (Delivery)**
+```
+POST {{base_url}}/deliveryman/documents
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data
+
+Campos:
+- `type` (string, obrigatório) - ex: `cnh_frente`, `selfie`
+- `description` (string, opcional)
+- `file` (binário, obrigatório)
+```
+
+#### **Listar Documentos do Entregador Logado (Delivery)**
+```
+GET {{base_url}}/deliveryman/documents/my
+Authorization: Bearer {{token}}
+```
+
+#### **Listar Documentos de um Entregador (Admin)**
+```
+GET {{base_url}}/deliveryman/documents/admin/{{deliverymanId}}
+Authorization: Bearer {{admin_token}}
+```
+
+#### **Atualizar Status do Usuário (Admin)**
+```
+PATCH {{base_url}}/users/{{userId}}/status
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "status": "ACTIVE",
+  "information": "Cadastro aprovado manualmente"
+}
+```
+
+Use este endpoint para liberar manualmente entregadores que estavam com status `NO_DOCUMENTS` após revisar os arquivos enviados via painel.
+
 #### **Simular Entrega**
 ```
 POST {{base_url}}/delivery/simulate
@@ -432,4 +470,3 @@ docker-compose restart
 2. **Endpoint `/vehicle-types` (GET)** não requer autenticação
 3. Todos os outros endpoints **requerem** o token JWT no header `Authorization`
 4. A documentação completa está disponível em `/docs` quando o servidor estiver rodando
-

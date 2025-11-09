@@ -15,6 +15,7 @@ import { BillingModule } from './billing/billing.module';
 import { FileStorageModule } from './file-storage/file-storage.module';
 import { FileStorageService } from './file-storage/file-storage.service';
 import { jwtModuleConfig } from './config/jwt.config';
+import { DeliverymanDocumentModule } from './deliveryman-document/deliveryman-document.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { jwtModuleConfig } from './config/jwt.config';
     VehicleTypeModule,
     DeliveryModule,
     UserModule,
+    DeliverymanDocumentModule,
     BillingModule,
     FileStorageModule,
   ],

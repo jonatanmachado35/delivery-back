@@ -5,6 +5,7 @@ import { IPaginateResponse, paginateResponse } from '../utils/fn';
 import { LocationService } from '../location/location.service';
 import { ILocalization } from '../typing/location';
 import { Address, User } from '@prisma/client';
+import { UpdateUserStatusDto } from './dto/update-status.dto';
 
 @Injectable()
 export class UserService {
@@ -97,6 +98,19 @@ export class UserService {
                 },
               },
             },
+            Documents: {
+              orderBy: { updatedAt: 'desc' },
+              include: {
+                File: {
+                  select: {
+                    path: true,
+                    filename: true,
+                    mimetype: true,
+                    size: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -126,5 +140,26 @@ export class UserService {
     ).localization = coordinates;
 
     return user as unknown as User;
+  }
+
+  async updateStatus(id: number, body: UpdateUserStatusDto): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`usuario com codigo '${id}' não encontrado`);
+    }
+
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        status: body.status,
+        ...(body.information !== undefined && {
+          information: body.information,
+        }),
+      },
+    });
   }
 }

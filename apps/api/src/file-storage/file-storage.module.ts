@@ -3,5 +3,6 @@ import { FileStorageService } from './file-storage.service';
 
 @Module({
   providers: [FileStorageService],
+  exports: [FileStorageService],
 })
 export class FileStorageModule {}
