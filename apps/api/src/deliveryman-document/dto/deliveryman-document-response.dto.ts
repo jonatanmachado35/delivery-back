@@ -8,6 +8,18 @@ export class DeliverymanDocumentResponseDto {
   @ApiProperty({ description: 'Tipo do documento' })
   type: string;
 
+  @ApiProperty({ description: 'Número do documento (RG/CNH)' })
+  documentNumber: string;
+
+  @ApiProperty({ description: 'Nome completo do titular' })
+  fullName: string;
+
+  @ApiProperty({ description: 'CPF do titular' })
+  cpf: string;
+
+  @ApiProperty({ description: 'Tipo/categoria da CNH', required: false })
+  cnhType?: string | null;
+
   @ApiProperty({ description: 'Descrição informada pelo entregador', required: false })
   description: string;
 

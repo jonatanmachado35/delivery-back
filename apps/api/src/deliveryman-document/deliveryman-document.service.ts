@@ -59,8 +59,32 @@ export class DeliverymanDocumentService {
       existingDocument?.File,
     );
 
+    const documentNumber = dto.documentNumber?.trim() ?? existingDocument?.documentNumber ?? '';
+    const fullName = dto.fullName?.trim() ?? existingDocument?.fullName ?? '';
+    const cpf = this.onlyDigits(dto.cpf ?? existingDocument?.cpf ?? '');
+    const cnhType =
+      dto.cnhType !== undefined
+        ? this.optionalString(dto.cnhType)
+        : existingDocument?.cnhType ?? null;
+
+    if (!documentNumber) {
+      throw new BadRequestException('Número do documento é obrigatório');
+    }
+
+    if (!fullName) {
+      throw new BadRequestException('Nome completo é obrigatório');
+    }
+
+    if (!cpf || cpf.length !== 11) {
+      throw new BadRequestException('CPF inválido');
+    }
+
     const data = {
       description: dto.description ?? existingDocument?.description ?? '',
+      documentNumber,
+      fullName,
+      cpf,
+      cnhType,
       fileId: fileRecord.id,
       status: DeliverymanDocumentStatus.PENDING,
     };
@@ -135,6 +159,10 @@ export class DeliverymanDocumentService {
     id: number;
     type: string;
     description: string;
+    documentNumber: string;
+    fullName: string;
+    cpf: string;
+    cnhType: string | null;
     status: DeliverymanDocumentStatus;
     updatedAt: Date;
     File: {
@@ -148,6 +176,10 @@ export class DeliverymanDocumentService {
       id: document.id,
       type: document.type,
       description: document.description,
+      documentNumber: document.documentNumber,
+      fullName: document.fullName,
+      cpf: document.cpf,
+      cnhType: document.cnhType,
       status: document.status,
       fileUrl: document.File.path,
       fileName: document.File.filename,
@@ -155,5 +187,18 @@ export class DeliverymanDocumentService {
       fileSize: document.File.size,
       updatedAt: document.updatedAt,
     };
+  }
+
+  private optionalString(value?: string | null): string | null {
+    if (value === undefined || value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+
+  private onlyDigits(value: string): string {
+    return value.replace(/\D/g, '');
   }
 }

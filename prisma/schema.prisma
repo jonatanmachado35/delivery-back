@@ -190,6 +190,10 @@ model DeliverymanDocument {
   deliverymanId Int                       @map("deliveryman_id")
   type          String
   description   String                    @default("")
+  documentNumber String                   @default("") @map("document_number")
+  fullName      String                    @default("") @map("full_name")
+  cpf           String                    @default("")
+  cnhType       String?                   @map("cnh_type")
   status        DeliverymanDocumentStatus @default(PENDING)
   File          File                      @relation(fields: [fileId], references: [id])
   fileId        Int                       @unique @map("file_id")
