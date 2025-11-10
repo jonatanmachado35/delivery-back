@@ -111,6 +111,12 @@ export class UserService {
                 },
               },
             },
+            BankAccounts: {
+              orderBy: { createdAt: 'desc' },
+              omit: {
+                deliverymanId: true,
+              },
+            },
           },
         },
       },
