@@ -14,19 +14,19 @@ export class CreateDeliverymanDocumentDto {
   @MaxLength(50)
   type: string;
 
-  @ApiProperty({ description: 'Número do documento (RG / CNH)' })
+  @ApiPropertyOptional({ description: 'Número do documento (RG / CNH)' })
   @IsOptional()
   @IsString()
   @MaxLength(30)
   documentNumber?: string;
 
-  @ApiProperty({ description: 'Nome completo conforme documento' })
+  @ApiPropertyOptional({ description: 'Nome completo conforme documento' })
   @IsOptional()
   @IsString()
   @MaxLength(150)
   fullName?: string;
 
-  @ApiProperty({ description: 'CPF do titular (somente números)', example: '12345678901' })
+  @ApiPropertyOptional({ description: 'CPF do titular (somente números)', example: '12345678901' })
   @IsOptional()
   @IsString()
   @Matches(/^\d{11}$/, { message: 'cpf deve conter 11 dígitos' })

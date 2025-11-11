@@ -59,25 +59,20 @@ export class DeliverymanDocumentService {
       existingDocument?.File,
     );
 
-    const documentNumber = dto.documentNumber?.trim() ?? existingDocument?.documentNumber ?? '';
-    const fullName = dto.fullName?.trim() ?? existingDocument?.fullName ?? '';
-    const cpf = this.onlyDigits(dto.cpf ?? existingDocument?.cpf ?? '');
+    const documentNumber =
+      this.optionalString(dto.documentNumber) ?? existingDocument?.documentNumber ?? '';
+    const fullName = this.optionalString(dto.fullName) ?? existingDocument?.fullName ?? '';
+
+    const requestedCpf = dto.cpf ?? existingDocument?.cpf ?? '';
+    const cpf = this.onlyDigits(requestedCpf);
+
+    if (dto.cpf && cpf.length && cpf.length !== 11) {
+      throw new BadRequestException('CPF inválido');
+    }
     const cnhType =
       dto.cnhType !== undefined
         ? this.optionalString(dto.cnhType)
         : existingDocument?.cnhType ?? null;
-
-    if (!documentNumber) {
-      throw new BadRequestException('Número do documento é obrigatório');
-    }
-
-    if (!fullName) {
-      throw new BadRequestException('Nome completo é obrigatório');
-    }
-
-    if (!cpf || cpf.length !== 11) {
-      throw new BadRequestException('CPF inválido');
-    }
 
     const data = {
       description: dto.description ?? existingDocument?.description ?? '',
