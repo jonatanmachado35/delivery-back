@@ -69,6 +69,19 @@ export class DeliverymanDocumentService {
     if (dto.cpf && cpf.length && cpf.length !== 11) {
       throw new BadRequestException('CPF inválido');
     }
+
+    if (documentNumber) {
+      const duplicateDocument = await this.prisma.deliverymanDocument.findFirst({
+        where: {
+          documentNumber,
+          ...(existingDocument ? { NOT: { id: existingDocument.id } } : {}),
+        },
+      });
+
+      if (duplicateDocument) {
+        throw new BadRequestException('Já existe um documento cadastrado com esse número');
+      }
+    }
     const cnhType =
       dto.cnhType !== undefined
         ? this.optionalString(dto.cnhType)
