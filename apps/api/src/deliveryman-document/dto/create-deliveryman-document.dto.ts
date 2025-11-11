@@ -43,4 +43,10 @@ export class CreateDeliverymanDocumentDto {
   @IsString()
   @MaxLength(255)
   description?: string;
+
+  @ApiPropertyOptional({ description: 'Órgão emissor do documento' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  orgaoEmissao?: string;
 }

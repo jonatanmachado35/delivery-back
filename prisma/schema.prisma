@@ -194,6 +194,7 @@ model DeliverymanDocument {
   fullName      String                    @default("") @map("full_name")
   cpf           String                    @default("")
   cnhType       String?                   @map("cnh_type")
+  issuingAgency String?                   @map("issuing_agency")
   status        DeliverymanDocumentStatus @default(PENDING)
   File          File                      @relation(fields: [fileId], references: [id])
   fileId        Int                       @unique @map("file_id")

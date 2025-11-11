@@ -23,6 +23,9 @@ export class DeliverymanDocumentResponseDto {
   @ApiProperty({ description: 'Descrição informada pelo entregador', required: false })
   description: string;
 
+  @ApiProperty({ description: 'Órgão emissor do documento', required: false })
+  orgaoEmissao?: string | null;
+
   @ApiProperty({ enum: DeliverymanDocumentStatus })
   status: DeliverymanDocumentStatus;
 

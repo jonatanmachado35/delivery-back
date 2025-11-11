@@ -86,6 +86,10 @@ export class DeliverymanDocumentService {
       dto.cnhType !== undefined
         ? this.optionalString(dto.cnhType)
         : existingDocument?.cnhType ?? null;
+    const issuingAgency =
+      dto.orgaoEmissao !== undefined
+        ? this.optionalString(dto.orgaoEmissao)
+        : existingDocument?.issuingAgency ?? null;
 
     const data = {
       description: dto.description ?? existingDocument?.description ?? '',
@@ -93,6 +97,7 @@ export class DeliverymanDocumentService {
       fullName,
       cpf,
       cnhType,
+      issuingAgency,
       fileId: fileRecord.id,
       status: DeliverymanDocumentStatus.PENDING,
     };
@@ -171,6 +176,7 @@ export class DeliverymanDocumentService {
     fullName: string;
     cpf: string;
     cnhType: string | null;
+    issuingAgency: string | null;
     status: DeliverymanDocumentStatus;
     updatedAt: Date;
     File: {
@@ -188,6 +194,7 @@ export class DeliverymanDocumentService {
       fullName: document.fullName,
       cpf: document.cpf,
       cnhType: document.cnhType,
+      orgaoEmissao: document.issuingAgency,
       status: document.status,
       fileUrl: document.File.path,
       fileName: document.File.filename,
