@@ -80,6 +80,11 @@ enum DeliverymanDocumentStatus {
   REJECTED
 }
 
+enum DeliverymanDocumentType {
+  RG
+  CNH
+}
+
 model VehicleType {
   id                Int       @id @default(autoincrement())
   type              String    @unique
@@ -189,6 +194,7 @@ model DeliverymanDocument {
   deliveryman   DeliveryMan               @relation(fields: [deliverymanId], references: [id])
   deliverymanId Int                       @map("deliveryman_id")
   type          String
+  documentType  DeliverymanDocumentType?  @map("document_type")
   description   String                    @default("")
   documentNumber String                   @default("") @map("document_number")
   fullName      String                    @default("") @map("full_name")

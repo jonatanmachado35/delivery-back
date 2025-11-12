@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { FileStorageService } from '../file-storage/file-storage.service';
 import {
   DeliverymanDocumentStatus,
+  DeliverymanDocumentType,
   Role,
   User,
 } from '@prisma/client';
@@ -90,6 +91,10 @@ export class DeliverymanDocumentService {
       dto.orgaoEmissao !== undefined
         ? this.optionalString(dto.orgaoEmissao)
         : existingDocument?.issuingAgency ?? null;
+    const documentType =
+      dto.documentType !== undefined
+        ? dto.documentType
+        : existingDocument?.documentType ?? null;
 
     const data = {
       description: dto.description ?? existingDocument?.description ?? '',
@@ -98,6 +103,7 @@ export class DeliverymanDocumentService {
       cpf,
       cnhType,
       issuingAgency,
+      documentType,
       fileId: fileRecord.id,
       status: DeliverymanDocumentStatus.PENDING,
     };
@@ -171,6 +177,7 @@ export class DeliverymanDocumentService {
   private toResponse(document: {
     id: number;
     type: string;
+    documentType: DeliverymanDocumentType | null;
     description: string;
     documentNumber: string;
     fullName: string;
@@ -189,6 +196,7 @@ export class DeliverymanDocumentService {
     return {
       id: document.id,
       type: document.type,
+      documentType: document.documentType,
       description: document.description,
       documentNumber: document.documentNumber,
       fullName: document.fullName,

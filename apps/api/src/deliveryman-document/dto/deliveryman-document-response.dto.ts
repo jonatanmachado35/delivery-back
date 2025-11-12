@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { DeliverymanDocumentStatus } from '@prisma/client';
+import { DeliverymanDocumentStatus, DeliverymanDocumentType } from '@prisma/client';
 
 export class DeliverymanDocumentResponseDto {
   @ApiProperty()
@@ -7,6 +7,9 @@ export class DeliverymanDocumentResponseDto {
 
   @ApiProperty({ description: 'Tipo do documento' })
   type: string;
+
+  @ApiProperty({ description: 'Documento escolhido (RG/CNH)', required: false, enum: DeliverymanDocumentType })
+  documentType?: DeliverymanDocumentType | null;
 
   @ApiProperty({ description: 'Número do documento (RG/CNH)' })
   documentNumber: string;

@@ -7,6 +7,10 @@ CREATE TABLE "deliveryman_documents" (
     "deliveryman_id" INTEGER NOT NULL,
     "type" TEXT NOT NULL,
     "description" TEXT NOT NULL DEFAULT '',
+    "document_number" TEXT NOT NULL DEFAULT '',
+    "full_name" TEXT NOT NULL DEFAULT '',
+    "cpf" TEXT NOT NULL DEFAULT '',
+    "cnh_type" TEXT,
     "status" "DeliverymanDocumentStatus" NOT NULL DEFAULT 'PENDING',
     "file_id" INTEGER NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -23,4 +27,3 @@ ALTER TABLE "deliveryman_documents" ADD CONSTRAINT "deliveryman_documents_delive
 
 -- AddForeignKey
 ALTER TABLE "deliveryman_documents" ADD CONSTRAINT "deliveryman_documents_file_id_fkey" FOREIGN KEY ("file_id") REFERENCES "files"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-

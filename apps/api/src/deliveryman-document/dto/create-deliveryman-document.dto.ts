@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { DeliverymanDocumentType } from '@prisma/client';
 import {
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -49,4 +51,12 @@ export class CreateDeliverymanDocumentDto {
   @IsString()
   @MaxLength(100)
   orgaoEmissao?: string;
+
+  @ApiPropertyOptional({
+    description: 'Documento escolhido pelo entregador',
+    enum: DeliverymanDocumentType,
+  })
+  @IsOptional()
+  @IsEnum(DeliverymanDocumentType)
+  documentType?: DeliverymanDocumentType;
 }
