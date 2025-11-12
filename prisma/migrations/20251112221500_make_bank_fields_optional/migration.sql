@@ -1,0 +1,7 @@
+ALTER TABLE IF EXISTS "deliveryman_bank_accounts"
+  ALTER COLUMN "bank_name" DROP NOT NULL,
+  ALTER COLUMN "agency" DROP NOT NULL,
+  ALTER COLUMN "account" DROP NOT NULL,
+  ALTER COLUMN "account_type" DROP NOT NULL,
+  ALTER COLUMN "holder_name" DROP NOT NULL,
+  ALTER COLUMN "cpf" DROP NOT NULL;

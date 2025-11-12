@@ -229,14 +229,14 @@ model DeliverymanBankAccount {
   deliveryman    DeliveryMan                @relation(fields: [deliverymanId], references: [id])
   deliverymanId  Int                        @map("deliveryman_id")
   bankCode       String?                    @map("bank_code")
-  bankName       String                     @map("bank_name")
-  agency         String
+  bankName       String?                    @map("bank_name")
+  agency         String?
   agencyDigit    String?                    @map("agency_digit")
-  account        String
+  account        String?
   accountDigit   String?                    @map("account_digit")
-  accountType    DeliverymanBankAccountType @map("account_type")
-  holderName     String                     @map("holder_name")
-  cpf            String
+  accountType    DeliverymanBankAccountType? @map("account_type")
+  holderName     String?                    @map("holder_name")
+  cpf            String?
   pixKey         String?                    @map("pix_key")
   pixKeyType     PixKeyType?                @map("pix_key_type")
   isDefault      Boolean                    @default(false) @map("is_default")

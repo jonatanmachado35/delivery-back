@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import {
   DeliverymanBankAccount,
+  DeliverymanBankAccountType,
+  PixKeyType,
   Role,
   User,
 } from '@prisma/client';
@@ -37,20 +39,12 @@ export class DeliverymanBankAccountService {
       });
     }
 
+    const normalizedData = this.normalizeBankAccountData(dto);
+
     const account = await this.prisma.deliverymanBankAccount.create({
       data: {
         deliverymanId: deliveryman.id,
-        bankName: dto.bankName.trim(),
-        bankCode: this.sanitizeString(dto.bankCode),
-        agency: dto.agency.trim(),
-        agencyDigit: this.sanitizeString(dto.agencyDigit),
-        account: dto.account.trim(),
-        accountDigit: this.sanitizeString(dto.accountDigit),
-        accountType: dto.accountType,
-        holderName: dto.holderName.trim(),
-        cpf: this.onlyDigits(dto.cpf),
-        pixKey: this.sanitizeString(dto.pixKey),
-        pixKeyType: dto.pixKeyType,
+        ...normalizedData,
         isDefault: shouldBeDefault,
       },
     });
@@ -102,28 +96,15 @@ export class DeliverymanBankAccountService {
       });
     }
 
+    const normalizedData = this.normalizeBankAccountData(
+      dto,
+      existingAccount,
+    );
+
     const updatedAccount = await this.prisma.deliverymanBankAccount.update({
       where: { id: existingAccount.id },
       data: {
-        ...(dto.bankName && { bankName: dto.bankName.trim() }),
-        ...(dto.bankCode !== undefined && {
-          bankCode: this.sanitizeString(dto.bankCode),
-        }),
-        ...(dto.agency && { agency: dto.agency.trim() }),
-        ...(dto.agencyDigit !== undefined && {
-          agencyDigit: this.sanitizeString(dto.agencyDigit),
-        }),
-        ...(dto.account && { account: dto.account.trim() }),
-        ...(dto.accountDigit !== undefined && {
-          accountDigit: this.sanitizeString(dto.accountDigit),
-        }),
-        ...(dto.accountType && { accountType: dto.accountType }),
-        ...(dto.holderName && { holderName: dto.holderName.trim() }),
-        ...(dto.cpf && { cpf: this.onlyDigits(dto.cpf) }),
-        ...(dto.pixKey !== undefined && {
-          pixKey: this.sanitizeString(dto.pixKey),
-        }),
-        ...(dto.pixKeyType !== undefined && { pixKeyType: dto.pixKeyType }),
+        ...normalizedData,
         ...(dto.isDefault !== undefined && { isDefault: dto.isDefault }),
       },
     });
@@ -205,5 +186,99 @@ export class DeliverymanBankAccountService {
 
   private onlyDigits(value: string): string {
     return value.replace(/\D/g, '');
+  }
+
+  private normalizeBankAccountData(
+    dto: Partial<CreateDeliverymanBankAccountDto>,
+    current?: DeliverymanBankAccount,
+  ) {
+    const bankName =
+      dto.bankName !== undefined
+        ? this.sanitizeString(dto.bankName)
+        : current?.bankName ?? null;
+    const bankCode =
+      dto.bankCode !== undefined
+        ? this.sanitizeString(dto.bankCode)
+        : current?.bankCode ?? null;
+    const agency =
+      dto.agency !== undefined
+        ? this.sanitizeString(dto.agency)
+        : current?.agency ?? null;
+    const agencyDigit =
+      dto.agencyDigit !== undefined
+        ? this.sanitizeString(dto.agencyDigit)
+        : current?.agencyDigit ?? null;
+    const account =
+      dto.account !== undefined
+        ? this.sanitizeString(dto.account)
+        : current?.account ?? null;
+    const accountDigit =
+      dto.accountDigit !== undefined
+        ? this.sanitizeString(dto.accountDigit)
+        : current?.accountDigit ?? null;
+    const accountType: DeliverymanBankAccountType | null =
+      dto.accountType !== undefined
+        ? dto.accountType
+        : current?.accountType ?? null;
+    const holderName =
+      dto.holderName !== undefined
+        ? this.sanitizeString(dto.holderName)
+        : current?.holderName ?? null;
+    const cpfDigits =
+      dto.cpf !== undefined
+        ? this.onlyDigits(dto.cpf)
+        : current?.cpf ?? null;
+    const cpf = cpfDigits && cpfDigits.length ? cpfDigits : null;
+
+    const pixKey =
+      dto.pixKey !== undefined
+        ? this.sanitizeString(dto.pixKey)
+        : current?.pixKey ?? null;
+    const pixKeyType: PixKeyType | null =
+      dto.pixKeyType !== undefined
+        ? dto.pixKeyType
+        : current?.pixKeyType ?? null;
+
+    if (pixKey && !pixKeyType) {
+      throw new BadRequestException('Informe o tipo da chave PIX');
+    }
+
+    if (pixKeyType && !pixKey) {
+      throw new BadRequestException('Informe o valor da chave PIX');
+    }
+
+    if (cpf && cpf.length !== 11) {
+      throw new BadRequestException('CPF inválido');
+    }
+
+    const hasPix = Boolean(pixKey && pixKeyType);
+    const hasBank = Boolean(
+      bankName &&
+        agency &&
+        account &&
+        accountType &&
+        holderName &&
+        cpf,
+    );
+
+    if (!hasPix && !hasBank) {
+      throw new BadRequestException(
+        'Informe os dados bancários completos ou uma chave PIX.',
+      );
+    }
+
+    return {
+      bankName,
+      bankCode,
+      agency,
+      agencyDigit,
+      account,
+      accountDigit,
+      accountType,
+      holderName,
+      cpf,
+      pixKey,
+      pixKeyType,
+    };
   }
 }

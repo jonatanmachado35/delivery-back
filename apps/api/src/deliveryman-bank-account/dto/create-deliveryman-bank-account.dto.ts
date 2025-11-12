@@ -1,8 +1,7 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsEnum,
-  IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
@@ -15,11 +14,14 @@ import {
 } from '@prisma/client';
 
 export class CreateDeliverymanBankAccountDto {
-  @ApiProperty({ description: 'Nome do banco', example: 'Banco do Brasil' })
+  @ApiPropertyOptional({
+    description: 'Nome do banco (obrigatório quando não houver chave PIX)',
+    example: 'Banco do Brasil',
+  })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(120)
-  bankName: string;
+  bankName?: string;
 
   @ApiPropertyOptional({ description: 'Código do banco', example: '001' })
   @IsOptional()
@@ -27,11 +29,14 @@ export class CreateDeliverymanBankAccountDto {
   @MaxLength(10)
   bankCode?: string;
 
-  @ApiProperty({ description: 'Número da agência', example: '1234' })
+  @ApiPropertyOptional({
+    description: 'Número da agência (obrigatório quando não houver chave PIX)',
+    example: '1234',
+  })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(20)
-  agency: string;
+  agency?: string;
 
   @ApiPropertyOptional({ description: 'Dígito da agência', example: '5' })
   @IsOptional()
@@ -39,11 +44,14 @@ export class CreateDeliverymanBankAccountDto {
   @MaxLength(5)
   agencyDigit?: string;
 
-  @ApiProperty({ description: 'Número da conta', example: '67890' })
+  @ApiPropertyOptional({
+    description: 'Número da conta (obrigatório quando não houver chave PIX)',
+    example: '67890',
+  })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(30)
-  account: string;
+  account?: string;
 
   @ApiPropertyOptional({ description: 'Dígito da conta', example: '1' })
   @IsOptional()
@@ -51,27 +59,32 @@ export class CreateDeliverymanBankAccountDto {
   @MaxLength(5)
   accountDigit?: string;
 
-  @ApiProperty({
-    description: 'Tipo da conta',
+  @ApiPropertyOptional({
+    description: 'Tipo da conta (obrigatório quando não houver chave PIX)',
     enum: DeliverymanBankAccountType,
     example: DeliverymanBankAccountType.CHECKING,
   })
+  @IsOptional()
   @IsEnum(DeliverymanBankAccountType)
-  accountType: DeliverymanBankAccountType;
+  accountType?: DeliverymanBankAccountType;
 
-  @ApiProperty({ description: 'Nome do titular da conta', example: 'João Silva' })
+  @ApiPropertyOptional({
+    description: 'Nome do titular da conta (obrigatório quando não houver chave PIX)',
+    example: 'João Silva',
+  })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(120)
-  holderName: string;
+  holderName?: string;
 
-  @ApiProperty({
-    description: 'CPF do titular (somente números)',
+  @ApiPropertyOptional({
+    description: 'CPF do titular (somente números) - obrigatório quando não houver chave PIX',
     example: '12345678901',
   })
+  @IsOptional()
   @IsString()
   @Matches(/^\d{11}$/, { message: 'cpf deve conter 11 dígitos' })
-  cpf: string;
+  cpf?: string;
 
   @ApiPropertyOptional({
     description: 'Tipo da chave PIX',

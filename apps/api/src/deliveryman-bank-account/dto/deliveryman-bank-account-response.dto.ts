@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   DeliverymanBankAccountType,
   PixKeyType,
@@ -8,35 +8,35 @@ export class DeliverymanBankAccountResponseDto {
   @ApiProperty({ description: 'Identificador da conta bancária' })
   id: number;
 
-  @ApiProperty({ description: 'Nome do banco' })
-  bankName: string;
+  @ApiPropertyOptional({ description: 'Nome do banco' })
+  bankName?: string | null;
 
   @ApiProperty({ description: 'Código do banco', required: false })
   bankCode?: string | null;
 
-  @ApiProperty({ description: 'Agência' })
-  agency: string;
+  @ApiPropertyOptional({ description: 'Agência' })
+  agency?: string | null;
 
   @ApiProperty({ description: 'Dígito da agência', required: false })
   agencyDigit?: string | null;
 
-  @ApiProperty({ description: 'Número da conta' })
-  account: string;
+  @ApiPropertyOptional({ description: 'Número da conta' })
+  account?: string | null;
 
   @ApiProperty({ description: 'Dígito da conta', required: false })
   accountDigit?: string | null;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Tipo da conta',
     enum: DeliverymanBankAccountType,
   })
-  accountType: DeliverymanBankAccountType;
+  accountType?: DeliverymanBankAccountType | null;
 
-  @ApiProperty({ description: 'Nome do titular' })
-  holderName: string;
+  @ApiPropertyOptional({ description: 'Nome do titular' })
+  holderName?: string | null;
 
-  @ApiProperty({ description: 'CPF do titular (somente números)' })
-  cpf: string;
+  @ApiPropertyOptional({ description: 'CPF do titular (somente números)' })
+  cpf?: string | null;
 
   @ApiProperty({ description: 'Tipo da chave PIX', enum: PixKeyType, required: false })
   pixKeyType?: PixKeyType | null;
