@@ -95,9 +95,13 @@ export class DeliverymanDocumentService {
       dto.documentType !== undefined
         ? dto.documentType
         : existingDocument?.documentType ?? null;
+    const description =
+      dto.description !== undefined
+        ? this.optionalString(dto.description)
+        : existingDocument?.description ?? null;
 
     const data = {
-      description: dto.description ?? existingDocument?.description ?? '',
+      description,
       documentNumber,
       fullName,
       cpf,
@@ -178,7 +182,7 @@ export class DeliverymanDocumentService {
     id: number;
     type: string;
     documentType: DeliverymanDocumentType | null;
-    description: string;
+    description: string | null;
     documentNumber: string;
     fullName: string;
     cpf: string;

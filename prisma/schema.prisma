@@ -195,7 +195,7 @@ model DeliverymanDocument {
   deliverymanId Int                       @map("deliveryman_id")
   type          String
   documentType  DeliverymanDocumentType?  @map("document_type")
-  description   String                    @default("")
+  description   String?
   documentNumber String                   @default("") @map("document_number")
   fullName      String                    @default("") @map("full_name")
   cpf           String                    @default("")

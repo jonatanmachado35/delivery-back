@@ -24,7 +24,7 @@ export class DeliverymanDocumentResponseDto {
   cnhType?: string | null;
 
   @ApiProperty({ description: 'Descrição informada pelo entregador', required: false })
-  description: string;
+  description: string | null;
 
   @ApiProperty({ description: 'Órgão emissor do documento', required: false })
   orgaoEmissao?: string | null;
