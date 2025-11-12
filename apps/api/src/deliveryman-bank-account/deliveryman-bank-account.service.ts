@@ -184,8 +184,8 @@ export class DeliverymanBankAccountService {
     return trimmed.length ? trimmed : null;
   }
 
-  private onlyDigits(value: string): string {
-    return value.replace(/\D/g, '');
+  private onlyDigits(value?: string | null): string {
+    return (value ?? '').replace(/\D/g, '');
   }
 
   private normalizeBankAccountData(
