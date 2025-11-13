@@ -156,8 +156,9 @@ export class AuthService {
         throw new ConflictException('Email já cadastrado');
       }
 
-      const existingCpf = await tx.user.findFirst({
-        where: { DeliveryMan: { cpf: deliveryman.cpf } },
+      const existingCpf = await tx.deliveryMan.findUnique({
+        where: { cpf: deliveryman.cpf },
+        select: { id: true },
       });
 
       if (existingCpf) {

@@ -71,6 +71,19 @@ export class DeliverymanDocumentService {
       throw new BadRequestException('CPF inválido');
     }
 
+    if (cpf) {
+      const duplicateCpf = await this.prisma.deliverymanDocument.findFirst({
+        where: {
+          cpf,
+          ...(existingDocument ? { NOT: { id: existingDocument.id } } : {}),
+        },
+      });
+
+      if (duplicateCpf) {
+        throw new BadRequestException('CPF já cadastrado');
+      }
+    }
+
     if (documentNumber) {
       const duplicateDocument = await this.prisma.deliverymanDocument.findFirst({
         where: {
