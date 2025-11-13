@@ -38,12 +38,6 @@ export class CreateDeliverymanBankAccountDto {
   @MaxLength(20)
   agency?: string;
 
-  @ApiPropertyOptional({ description: 'Dígito da agência', example: '5' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(5)
-  agencyDigit?: string;
-
   @ApiPropertyOptional({
     description: 'Número da conta (obrigatório quando não houver chave PIX)',
     example: '67890',
@@ -52,12 +46,6 @@ export class CreateDeliverymanBankAccountDto {
   @IsString()
   @MaxLength(30)
   account?: string;
-
-  @ApiPropertyOptional({ description: 'Dígito da conta', example: '1' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(5)
-  accountDigit?: string;
 
   @ApiPropertyOptional({
     description: 'Tipo da conta (obrigatório quando não houver chave PIX)',

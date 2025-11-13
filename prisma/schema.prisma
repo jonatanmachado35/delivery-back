@@ -231,9 +231,7 @@ model DeliverymanBankAccount {
   bankCode       String?                    @map("bank_code")
   bankName       String?                    @map("bank_name")
   agency         String?
-  agencyDigit    String?                    @map("agency_digit")
   account        String?
-  accountDigit   String?                    @map("account_digit")
   accountType    DeliverymanBankAccountType? @map("account_type")
   holderName     String?                    @map("holder_name")
   cpf            String?

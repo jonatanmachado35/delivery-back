@@ -13,6 +13,8 @@ import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { isMobileDevice } from '../utils/fn';
 import { DeliverymanDto } from './dto/deliverymen.dto';
 import { User } from '@prisma/client';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -40,6 +42,30 @@ export class AuthController {
     user: User;
   }> {
     return this.authService.login(loginDto, isMobileDevice(agent));
+  }
+
+  @Post('password/forgot')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Solicita redefinição de senha' })
+  @ApiResponse({
+    status: 200,
+    description: 'Token de redefinição gerado',
+    schema: {
+      example: { token: '3fdd8a6c04554b89bcd543b0f2e09c50' },
+    },
+  })
+  forgotPassword(
+    @Body() body: ForgotPasswordDto,
+  ): Promise<{ token: string }> {
+    return this.authService.requestPasswordReset(body);
+  }
+
+  @Post('password/reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Define uma nova senha usando o token' })
+  @ApiResponse({ status: 200, description: 'Senha redefinida com sucesso' })
+  resetPassword(@Body() body: ResetPasswordDto): Promise<void> {
+    return this.authService.resetPassword(body);
   }
   @ApiOperation({ summary: 'Company signup' })
   @ApiResponse({

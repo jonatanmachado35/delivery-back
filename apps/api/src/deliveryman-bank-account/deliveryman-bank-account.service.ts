@@ -161,9 +161,7 @@ export class DeliverymanBankAccountService {
       bankName: account.bankName,
       bankCode: account.bankCode,
       agency: account.agency,
-      agencyDigit: account.agencyDigit,
       account: account.account,
-      accountDigit: account.accountDigit,
       accountType: account.accountType,
       holderName: account.holderName,
       cpf: account.cpf,
@@ -204,18 +202,10 @@ export class DeliverymanBankAccountService {
       dto.agency !== undefined
         ? this.sanitizeString(dto.agency)
         : current?.agency ?? null;
-    const agencyDigit =
-      dto.agencyDigit !== undefined
-        ? this.sanitizeString(dto.agencyDigit)
-        : current?.agencyDigit ?? null;
     const account =
       dto.account !== undefined
         ? this.sanitizeString(dto.account)
         : current?.account ?? null;
-    const accountDigit =
-      dto.accountDigit !== undefined
-        ? this.sanitizeString(dto.accountDigit)
-        : current?.accountDigit ?? null;
     const accountType: DeliverymanBankAccountType | null =
       dto.accountType !== undefined
         ? dto.accountType
@@ -271,9 +261,7 @@ export class DeliverymanBankAccountService {
       bankName,
       bankCode,
       agency,
-      agencyDigit,
       account,
-      accountDigit,
       accountType,
       holderName,
       cpf,

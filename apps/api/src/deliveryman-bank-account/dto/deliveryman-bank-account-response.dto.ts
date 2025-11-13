@@ -17,14 +17,8 @@ export class DeliverymanBankAccountResponseDto {
   @ApiPropertyOptional({ description: 'Agência' })
   agency?: string | null;
 
-  @ApiProperty({ description: 'Dígito da agência', required: false })
-  agencyDigit?: string | null;
-
   @ApiPropertyOptional({ description: 'Número da conta' })
   account?: string | null;
-
-  @ApiProperty({ description: 'Dígito da conta', required: false })
-  accountDigit?: string | null;
 
   @ApiPropertyOptional({
     description: 'Tipo da conta',
