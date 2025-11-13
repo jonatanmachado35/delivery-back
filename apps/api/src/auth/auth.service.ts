@@ -21,6 +21,7 @@ import {
 } from '@prisma/client';
 import { DeliverymanDto } from './dto/deliverymen.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -382,6 +383,19 @@ export class AuthService {
         } as unknown as User,
       };
     });
+  }
+
+  async ensureUserEmail(dto: ForgotPasswordDto): Promise<void> {
+    const email = dto.email.trim().toLowerCase();
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<void> {

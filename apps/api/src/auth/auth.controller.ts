@@ -14,6 +14,7 @@ import { isMobileDevice } from '../utils/fn';
 import { DeliverymanDto } from './dto/deliverymen.dto';
 import { User } from '@prisma/client';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -41,6 +42,14 @@ export class AuthController {
     user: User;
   }> {
     return this.authService.login(loginDto, isMobileDevice(agent));
+  }
+
+  @Post('password/forgot')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verifica se o email existe para recuperação de senha' })
+  @ApiResponse({ status: 200, description: 'Email encontrado' })
+  forgotPassword(@Body() body: ForgotPasswordDto): Promise<void> {
+    return this.authService.ensureUserEmail(body);
   }
 
   @Post('password/reset')
