@@ -119,16 +119,11 @@ export class AuthService {
         .trim()
         .toLowerCase();
       const isBike = normalizedVehicleType === 'bike';
-      const requiresDocument = !isBike;
-      const initialStatus = requiresDocument
-        ? (UserStatus.NO_DOCUMENTS as UserStatus)
-        : UserStatus.ACTIVE;
-      const initialInformation = requiresDocument
-        ? `
+      const initialStatus = UserStatus.NO_DOCUMENTS as UserStatus;
+      const initialInformation = `
           ### Sistema
           - Aguardando documentos
-          - Aguardando desbloqueio`
-        : 'Cadastro liberado automaticamente';
+          - Aguardando desbloqueio`;
 
       const cleanLicensePlate = deliveryman.licensePlate
         ? deliveryman.licensePlate.trim().toUpperCase()
