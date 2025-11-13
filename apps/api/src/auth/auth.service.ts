@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,9 +11,6 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CompanyDto } from './dto/company.dto';
 import { LocationService } from '../location/location.service';
-import { CacheService } from '../cache/cache.service';
-import { MailService } from '../mail/mail.service';
-import { randomBytes } from 'crypto';
 import {
   Company,
   DeliveryMan,
@@ -24,7 +20,6 @@ import {
   UserStatus,
 } from '@prisma/client';
 import { DeliverymanDto } from './dto/deliverymen.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
@@ -33,8 +28,6 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private locationService: LocationService,
-    private cacheService: CacheService,
-    private mailService: MailService,
   ) {}
 
   async signupCompany(company: CompanyDto): Promise<void> {
@@ -391,32 +384,6 @@ export class AuthService {
     });
   }
 
-  async requestPasswordReset(
-    dto: ForgotPasswordDto,
-  ): Promise<{ token: string }> {
-    const email = dto.email.trim().toLowerCase();
-
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-      select: { id: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuário não encontrado');
-    }
-
-    const token = randomBytes(16).toString('hex');
-    await this.cacheService.setCache(
-      this.passwordResetKey(email),
-      token,
-      60 * 15,
-    );
-
-    await this.mailService.sendPasswordResetEmail(user.email, token);
-
-    return { token };
-  }
-
   async resetPassword(dto: ResetPasswordDto): Promise<void> {
     const email = dto.email.trim().toLowerCase();
 
@@ -429,13 +396,6 @@ export class AuthService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const key = this.passwordResetKey(email);
-    const storedToken = await this.cacheService.getValue(key);
-
-    if (!storedToken || storedToken !== dto.token) {
-      throw new BadRequestException('Token inválido ou expirado');
-    }
-
     const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(dto.newPassword, salt);
 
@@ -443,11 +403,5 @@ export class AuthService {
       where: { id: user.id },
       data: { password: hashedPassword },
     });
-
-    await this.cacheService.delete(key);
-  }
-
-  private passwordResetKey(email: string): string {
-    return `pwd-reset:${email}`;
   }
 }

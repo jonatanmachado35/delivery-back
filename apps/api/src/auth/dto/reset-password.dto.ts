@@ -3,20 +3,12 @@ import { IsEmail, IsNotEmpty, IsString, Matches, MinLength } from 'class-validat
 
 export class ResetPasswordDto {
   @ApiProperty({
-    description: 'Email utilizado para solicitar a redefinição',
+    description: 'Email cadastrado do usuário',
     example: 'usuario@exemplo.com',
   })
   @IsEmail()
   @IsNotEmpty()
   email: string;
-
-  @ApiProperty({
-    description: 'Token recebido ao solicitar a redefinição de senha',
-    example: '3fdd8a6c04554b89bcd543b0f2e09c50',
-  })
-  @IsString()
-  @IsNotEmpty()
-  token: string;
 
   @ApiProperty({
     description: 'Nova senha',
