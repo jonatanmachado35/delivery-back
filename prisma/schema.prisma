@@ -25,6 +25,8 @@ model User {
   DeliveryMan DeliveryMan?
   Company     Company?
   Billing     Billing[]
+  Avatar      File?        @relation("UserAvatar", fields: [avatarId], references: [id])
+  avatarId    Int?         @unique @map("avatar_id")
 
   @@map("users")
 }
@@ -185,6 +187,7 @@ model File {
   updatedAt           DateTime             @default(now()) @updatedAt
   Billing             Billing?
   DeliverymanDocument DeliverymanDocument?
+  UserAvatar          User?                @relation("UserAvatar")
 
   @@map("files")
 }

@@ -35,7 +35,7 @@ export class FileStorageService implements OnModuleInit {
     newFile: Express.Multer.File,
     folder: string[],
     file?: File,
-  ): Promise<Pick<File, 'id'>> {
+  ): Promise<Pick<File, 'id' | 'path'>> {
     const filename = newFile.originalname?.split('.')?.[0];
 
     if (file) {

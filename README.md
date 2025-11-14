@@ -252,6 +252,17 @@ Content-Type: application/json
 
 Use este endpoint para liberar manualmente entregadores que estavam com status `NO_DOCUMENTS` após revisar os arquivos enviados via painel.
 
+#### **Atualizar Avatar do Usuário**
+```
+PATCH {{base_url}}/users/{{userId}}/avatar
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data
+
+file: <binário>
+```
+
+O próprio usuário pode atualizar seu avatar; administradores podem alterar o avatar de qualquer perfil. A resposta traz o identificador do arquivo e a URL pública retornada pelo provedor de storage.
+
 #### **Simular Entrega**
 ```
 POST {{base_url}}/delivery/simulate

@@ -1,17 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { IUserQueryParams } from './dto/filter';
 import { PrismaService } from '../prisma/prisma.service';
 import { IPaginateResponse, paginateResponse } from '../utils/fn';
 import { LocationService } from '../location/location.service';
 import { ILocalization } from '../typing/location';
-import { Address, User } from '@prisma/client';
+import { Address, Role, User } from '@prisma/client';
 import { UpdateUserStatusDto } from './dto/update-status.dto';
+import { FileStorageService } from '../file-storage/file-storage.service';
 
 @Injectable()
 export class UserService {
   constructor(
     private prisma: PrismaService,
     private locationService: LocationService,
+    private fileStorage: FileStorageService,
   ) {}
 
   async paginate(
@@ -28,6 +35,16 @@ export class UserService {
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
+        include: {
+          Avatar: {
+            select: {
+              path: true,
+              filename: true,
+              mimetype: true,
+              size: true,
+            },
+          },
+        },
         omit: {
           password: true,
           createdAt: true,
@@ -52,6 +69,14 @@ export class UserService {
         id,
       },
       include: {
+        Avatar: {
+          select: {
+            path: true,
+            filename: true,
+            mimetype: true,
+            size: true,
+          },
+        },
         Balance: {
           select: {
             id: true,
@@ -166,5 +191,46 @@ export class UserService {
         }),
       },
     });
+  }
+
+  async updateAvatar(
+    targetUserId: number,
+    actor: Pick<User, 'id' | 'role'>,
+    file?: Express.Multer.File,
+  ): Promise<{ id: number; path: string }> {
+    if (!file) {
+      throw new BadRequestException('Arquivo é obrigatório');
+    }
+
+    if (actor.role !== Role.ADMIN && actor.id !== targetUserId) {
+      throw new ForbiddenException('Usuário não permitido atualizar este avatar');
+    }
+
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: {
+        id: true,
+        Avatar: true,
+      },
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException(
+        `usuario com codigo '${targetUserId}' não encontrado`,
+      );
+    }
+
+    const fileRecord = await this.fileStorage.upsert(
+      file,
+      ['user', targetUserId.toString(), 'avatar'],
+      targetUser.Avatar ?? undefined,
+    );
+
+    await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { avatarId: fileRecord.id },
+    });
+
+    return fileRecord;
   }
 }
