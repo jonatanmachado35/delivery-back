@@ -34,6 +34,22 @@ export class GpsGateway
     private jwt: JwtService,
   ) {}
 
+  /**
+   * Accept both "Bearer <token>" and raw token, from auth payload or Authorization header.
+   */
+  private extractToken(socket: Socket): string | undefined {
+    const authToken = socket.handshake.auth?.['token'] as string | undefined;
+    const headerToken = socket.handshake.headers?.authorization as
+      | string
+      | undefined;
+
+    const raw = authToken || headerToken;
+    if (!raw) return undefined;
+
+    const [maybePrefix, value] = raw.split(' ');
+    return value ?? maybePrefix;
+  }
+
   getClient(socketId: string): Socket | undefined {
     return this.connectedSockets.get(socketId);
   }
@@ -41,7 +57,7 @@ export class GpsGateway
   afterInit(server: Server) {
     this.server = server;
     server.use((socket, next): void => {
-      const token = (socket.handshake.auth['token'] as string)?.split(' ')?.[1];
+      const token = this.extractToken(socket);
 
       if (!token) {
         next(new Error('Authentication error'));
@@ -111,7 +127,7 @@ export class GpsGateway
   handleDisconnect(client: { id: string }) {
     this.logger.log('Client disconnected', client.id);
 
-    delete this.connectedSockets[client.id];
+    this.connectedSockets.delete(client.id);
   }
 
   async authorize(token: string): Promise<User | null> {
