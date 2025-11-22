@@ -42,7 +42,9 @@ export class BillingService {
     user: Pick<User, 'id' | 'role' | 'status'>,
   ): Promise<void> {
     return this.prisma.$transaction(async (tx: PrismaService) => {
-      if (![Role.ADMIN, Role.COMPANY].includes(user.role)) {
+      const allowedRoles: Role[] = [Role.ADMIN, Role.COMPANY];
+
+      if (!allowedRoles.includes(user.role)) {
         throw new UnauthorizedException(
           'Somente administradores ou lojistas podem criar faturamentos.',
         );
