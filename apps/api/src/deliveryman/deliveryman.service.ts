@@ -19,7 +19,15 @@ export class DeliverymanService {
   ): Promise<DeliverymanStatsResponseDto> {
     const deliveryman = await this.ensureAccess(deliverymanParamId, requester);
 
-    const [totalDeliveries, completedDeliveries, pendingDeliveries, cancelledDeliveries, totalEarnings, monthlyStats] =
+    const [
+      totalDeliveries,
+      completedDeliveries,
+      pendingDeliveries,
+      cancelledDeliveries,
+      totalEarnings,
+      monthlyStats,
+      balance,
+    ] =
       await Promise.all([
         this.prisma.delivery.count({
           where: { deliveryManId: deliveryman.id },
@@ -44,6 +52,18 @@ export class DeliverymanService {
         }),
         this.sumCompletedAmount(deliveryman.id),
         this.getMonthlyStats(deliveryman.id),
+        this.prisma.balance.findFirst({
+          where: {
+            User: {
+              some: {
+                id: deliveryman.userId,
+              },
+            },
+          },
+          select: {
+            amount: true,
+          },
+        }),
       ]);
 
     return {
@@ -52,6 +72,7 @@ export class DeliverymanService {
       pendingDeliveries,
       cancelledDeliveries,
       totalEarnings,
+      currentBalance: this.toNumber(balance?.amount),
       averageRating: 0,
       monthlyStats,
     };
@@ -60,19 +81,19 @@ export class DeliverymanService {
   async getReports(
     deliverymanParamId: number,
     requester: Pick<User, 'id' | 'role'>,
+    startDate?: string,
+    endDate?: string,
   ): Promise<DeliverymanReportsResponseDto> {
     const deliveryman = await this.ensureAccess(deliverymanParamId, requester);
 
-    const now = new Date();
-    const startOfWeek = this.getStartOfWeek(now);
-    const endOfWeek = this.getEndOfWeek(startOfWeek);
+    const { start, end } = this.resolveDateRange(startDate, endDate);
 
     const deliveries = await this.prisma.delivery.findMany({
       where: {
         deliveryManId: deliveryman.id,
         createdAt: {
-          gte: startOfWeek,
-          lte: endOfWeek,
+          gte: start,
+          lte: end,
         },
       },
       select: {
@@ -141,6 +162,7 @@ export class DeliverymanService {
         address: this.buildAddress(delivery.ClientAddress),
         value,
         createdAt: delivery.createdAt.toISOString(),
+        deliveredAt: delivery.completedAt?.toISOString(),
         description: delivery.information,
         date: delivery.createdAt.toISOString(),
       };
@@ -257,14 +279,17 @@ export class DeliverymanService {
         FROM "deliveries"
         WHERE "deliveryManId" = ${deliverymanId}
         GROUP BY 1
-        ORDER BY 1 ASC
+        ORDER BY 1 DESC
+        LIMIT 3
       `;
 
-    return rows.map((row) => ({
-      month: row.month,
-      deliveries: Number(row.deliveries) || 0,
-      earnings: this.round(Number(row.earnings) || 0),
-    }));
+    return rows
+      .map((row) => ({
+        month: row.month,
+        deliveries: Number(row.deliveries) || 0,
+        earnings: this.round(Number(row.earnings) || 0),
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
   }
 
   private buildEmptyWeeklyStats(): DeliverymanReportsResponseDto['weeklyStats'] {
@@ -351,6 +376,32 @@ export class DeliverymanService {
     end.setDate(end.getDate() + 6);
     end.setHours(23, 59, 59, 999);
     return end;
+  }
+
+  private resolveDateRange(startDate?: string, endDate?: string): {
+    start: Date;
+    end: Date;
+  } {
+    const now = new Date();
+    let start: Date;
+    let end: Date;
+
+    if (startDate && endDate) {
+      start = new Date(startDate);
+      end = new Date(endDate);
+    } else {
+      start = this.getStartOfWeek(now);
+      end = this.getEndOfWeek(start);
+    }
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new BadRequestException('Período inválido');
+    }
+
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
   }
 
   private toNumber(value?: Prisma.Decimal | number | null): number {

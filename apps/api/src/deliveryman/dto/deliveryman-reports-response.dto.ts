@@ -82,6 +82,9 @@ class DeliveryReportItemDto {
   @ApiProperty({ description: 'Data/hora de criação (ISO)' })
   createdAt: string;
 
+  @ApiProperty({ description: 'Data/hora de conclusão (ISO)', required: false })
+  deliveredAt?: string;
+
   @ApiProperty({ description: 'Descrição da entrega', required: false })
   description?: string;
 

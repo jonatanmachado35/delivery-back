@@ -27,6 +27,9 @@ export class DeliverymanStatsResponseDto {
   @ApiProperty({ description: 'Ganhos totais em reais' })
   totalEarnings: number;
 
+  @ApiProperty({ description: 'Saldo atual do entregador' })
+  currentBalance: number;
+
   @ApiProperty({ description: 'Avaliação média' })
   averageRating: number;
 

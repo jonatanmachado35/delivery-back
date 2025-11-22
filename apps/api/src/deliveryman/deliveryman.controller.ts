@@ -4,6 +4,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Query,
   Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -35,8 +36,15 @@ export class DeliverymanController {
   @ApiResponse({ status: HttpStatus.OK, type: DeliverymanReportsResponseDto })
   getReports(
     @Param('id') id: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
     @Req() req: Request & { user: Pick<User, 'id' | 'role'> },
   ): Promise<DeliverymanReportsResponseDto> {
-    return this.deliverymanService.getReports(Number(id), req.user);
+    return this.deliverymanService.getReports(
+      Number(id),
+      req.user,
+      startDate,
+      endDate,
+    );
   }
 }
