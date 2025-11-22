@@ -451,14 +451,22 @@ export class DeliveryService {
     }
 
     if (current === DeliveryStatus.PENDING) {
-      if (![DeliveryStatus.IN_PROGRESS, DeliveryStatus.CANCELED].includes(next)) {
+      const allowed: DeliveryStatus[] = [
+        DeliveryStatus.IN_PROGRESS,
+        DeliveryStatus.CANCELED,
+      ]
+      if (!allowed.includes(next)) {
         throw new ForbiddenException("Transição de status não permitida.")
       }
       return
     }
 
     if (current === DeliveryStatus.IN_PROGRESS) {
-      if (![DeliveryStatus.COMPLETED, DeliveryStatus.CANCELED].includes(next)) {
+      const allowed: DeliveryStatus[] = [
+        DeliveryStatus.COMPLETED,
+        DeliveryStatus.CANCELED,
+      ]
+      if (!allowed.includes(next)) {
         throw new ForbiddenException("Transição de status não permitida.")
       }
       return
