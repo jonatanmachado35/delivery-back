@@ -4,6 +4,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -24,6 +26,10 @@ import {
 import { DeliverySimulationResponseDto } from './dto/delivery-simulation-response.dto';
 import { DeliveryQueryParams } from './dto/filters.dto';
 import { DeliveryPaginateResponse } from './dto/delivery-paginate-response.dto';
+import {
+  DeliveryStatusUpdateDto,
+  DeliveryStatusUpdateResponseDto,
+} from './dto/delivery-status-update.dto';
 
 @Controller('delivery')
 export class DeliveryController {
@@ -81,5 +87,19 @@ export class DeliveryController {
 
     return this.deliveryService.createDelivery(body, user.id);
   }
-  
+
+  @Patch(':id/status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Atualiza status de uma entrega' })
+  @ApiOkResponse({
+    description: 'Status atualizado',
+    type: DeliveryStatusUpdateResponseDto,
+  })
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: DeliveryStatusUpdateDto,
+    @Req() req: Request & { user: Pick<User, 'id' | 'role'> },
+  ): Promise<DeliveryStatusUpdateResponseDto> {
+    return this.deliveryService.updateStatus(Number(id), req.user, body);
+  }
 }

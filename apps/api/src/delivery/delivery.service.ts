@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-import { Injectable, NotFoundException } from "@nestjs/common"
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
 import {
   DeliveryCreateDto,
   DeliveryCreateResponse,
@@ -8,12 +8,13 @@ import { DeliverySimulateDto } from "./dto/delivery-simulate.dto"
 import { PrismaService } from "../prisma/prisma.service"
 import { VehicleTypeService } from "../vehicle-type/vehicle-type.service"
 import { LocationService } from "../location/location.service"
-import { DeliveryStatus, Prisma, Role, VehicleType } from "@prisma/client"
+import { DeliveryStatus, Prisma, Role, User, VehicleType } from "@prisma/client"
 import { createCode, paginateResponse } from "../utils/fn"
 import { CacheService } from "../cache/cache.service"
 import { DeliverySimulationResponseDto } from "./dto/delivery-simulation-response.dto"
 import { DeliveryQueryParams } from "./dto/filters.dto"
 import {DeliveryPaginate, DeliveryPaginateResponse } from "./dto/delivery-paginate-response.dto"
+import { DeliveryStatusUpdateDto, DeliveryStatusUpdateResponseDto } from "./dto/delivery-status-update.dto"
 
 @Injectable()
 export class DeliveryService {
@@ -336,5 +337,133 @@ export class DeliveryService {
       (delivery.Company as any).address = `${address.street}, ${address.number} - ${address.city}, ${address.state} - ${address.zipCode}${address.complement ? ` (${address.complement})` : ''}`;
     }
     return delivery as unknown as DeliveryPaginate;
+  }
+
+  async updateStatus(
+    deliveryId: number,
+    user: Pick<User, "id" | "role">,
+    body: DeliveryStatusUpdateDto
+  ): Promise<DeliveryStatusUpdateResponseDto> {
+    if (!Number.isInteger(deliveryId) || deliveryId <= 0) {
+      throw new BadRequestException("Identificador da entrega inválido.")
+    }
+
+    if (user.role !== Role.DELIVERY) {
+      throw new ForbiddenException("Apenas entregadores podem alterar status.")
+    }
+
+    const deliveryman = await this.prismaService.deliveryMan.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    })
+
+    if (!deliveryman) {
+      throw new ForbiddenException("Entregador não encontrado para o usuário.")
+    }
+
+    const delivery = await this.prismaService.delivery.findUnique({
+      where: { id: deliveryId },
+      select: {
+        id: true,
+        code: true,
+        status: true,
+        deliveryManId: true,
+      },
+    })
+
+    if (!delivery) {
+      throw new NotFoundException("Entrega não encontrada.")
+    }
+
+    if (delivery.deliveryManId !== deliveryman.id) {
+      throw new ForbiddenException("Esta entrega não está atribuída a você.")
+    }
+
+    const newStatus = this.mapIncomingStatus(body.status)
+    this.ensureValidTransition(delivery.status, newStatus)
+
+    const data: Prisma.DeliveryUpdateInput = {
+      status: newStatus,
+      completedAt:
+        newStatus === DeliveryStatus.COMPLETED ? new Date() : null,
+    }
+
+    const updated = await this.prismaService.delivery.update({
+      where: { id: deliveryId },
+      data,
+      select: {
+        id: true,
+        code: true,
+        status: true,
+        completedAt: true,
+      },
+    })
+
+    return {
+      id: updated.id,
+      code: updated.code,
+      status: this.mapStatusToResponse(updated.status),
+      deliveredAt: updated.completedAt?.toISOString(),
+    }
+  }
+
+  private mapIncomingStatus(status: string): DeliveryStatus {
+    const normalized = status.trim().toLowerCase()
+
+    if (normalized === "pending") {
+      return DeliveryStatus.PENDING
+    }
+
+    if (normalized === "in_transit" || normalized === "in_progress") {
+      return DeliveryStatus.IN_PROGRESS
+    }
+
+    if (normalized === "delivered" || normalized === "completed") {
+      return DeliveryStatus.COMPLETED
+    }
+
+    if (normalized === "cancelled" || normalized === "canceled") {
+      return DeliveryStatus.CANCELED
+    }
+
+    throw new BadRequestException("Status inválido.")
+  }
+
+  private mapStatusToResponse(status: DeliveryStatus): string {
+    switch (status) {
+      case DeliveryStatus.COMPLETED:
+        return "delivered"
+      case DeliveryStatus.IN_PROGRESS:
+        return "in_transit"
+      case DeliveryStatus.CANCELED:
+        return "cancelled"
+      default:
+        return "pending"
+    }
+  }
+
+  private ensureValidTransition(
+    current: DeliveryStatus,
+    next: DeliveryStatus
+  ): void {
+    if (current === next) {
+      return
+    }
+
+    if (current === DeliveryStatus.PENDING) {
+      if (![DeliveryStatus.IN_PROGRESS, DeliveryStatus.CANCELED].includes(next)) {
+        throw new ForbiddenException("Transição de status não permitida.")
+      }
+      return
+    }
+
+    if (current === DeliveryStatus.IN_PROGRESS) {
+      if (![DeliveryStatus.COMPLETED, DeliveryStatus.CANCELED].includes(next)) {
+        throw new ForbiddenException("Transição de status não permitida.")
+      }
+      return
+    }
+
+    throw new ForbiddenException("Transição de status não permitida.")
   }
 }
