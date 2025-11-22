@@ -29,6 +29,7 @@ import { IPaginateResponse } from '../utils/fn';
 import { BillingFindOneResponse } from './dto/billing-findOne-response.dto';
 import { BillingCreateDto } from './dto/billing-create.dto';
 import { AdminGuard } from '../admin/admin.guard';
+import { AdminOrCompanyGuard } from '../admin/admin-or-company.guard';
 
 @Controller('billing')
 export class BillingController {
@@ -37,7 +38,7 @@ export class BillingController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'cria faturamento de credito' })
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminOrCompanyGuard)
   createBilling(
     @Body() body: BillingCreateDto,
     @Req() req: Request & { user: User },

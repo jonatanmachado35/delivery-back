@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { cronCustomExpression } from '../config/cron';
@@ -38,19 +39,36 @@ export class BillingService {
 
   createBilling(
     body: BillingCreateDto,
-    _user: Pick<User, 'id' | 'role' | 'status'>,
+    user: Pick<User, 'id' | 'role' | 'status'>,
   ): Promise<void> {
     return this.prisma.$transaction(async (tx: PrismaService) => {
-      const user = await tx.user.findUnique({
+      if (![Role.ADMIN, Role.COMPANY].includes(user.role)) {
+        throw new UnauthorizedException(
+          'Somente administradores ou lojistas podem criar faturamentos.',
+        );
+      }
+
+      const targetUserId = user.role === Role.ADMIN ? body.idUser : user.id;
+
+      if (!targetUserId) {
+        throw new BadRequestException('Usuário inválido para faturamento');
+      }
+
+      const billingStatus =
+        user.role === Role.ADMIN
+          ? body.status ?? BillingStatus.PENDING
+          : BillingStatus.PENDING;
+
+      const targetUser = await tx.user.findUnique({
         where: {
-          id: body.idUser,
+          id: targetUserId,
         },
         select: {
           id: true,
         },
       });
 
-      if (!user) {
+      if (!targetUser) {
         throw new NotFoundException('Usuário não encontrado');
       }
 
@@ -59,15 +77,15 @@ export class BillingService {
           amount: body.amount,
           description: body.description,
           type: BillingType.INCOME,
-          status: body.status ?? BillingStatus.PENDING,
-          userId: body.idUser,
+          status: billingStatus,
+          userId: targetUserId,
         },
       });
 
-      if (body.status === BillingStatus.PAID) {
-        await this.updateUserBalance(body.idUser, body.amount, 'CREDIT', tx);
+      if (billingStatus === BillingStatus.PAID) {
+        await this.updateUserBalance(targetUserId, body.amount, 'CREDIT', tx);
         await this.createExtractEntry(
-          body.idUser,
+          targetUserId,
           body.amount,
           ExtractType.DEPOSIT,
           tx,

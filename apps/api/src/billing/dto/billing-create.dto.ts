@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BillingStatus } from '@prisma/client';
-import { IsIn, IsNotEmpty, IsNumber } from 'class-validator';
+import { IsIn, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export class BillingCreateDto {
   @ApiProperty({
@@ -12,11 +12,14 @@ export class BillingCreateDto {
   amount: number;
 
   @ApiProperty({
-    required: true,
+    required: false,
+    type: 'number',
+    description: 'Obrigatório apenas para administradores',
   })
+  @IsOptional()
   @IsNumber()
   @IsNotEmpty()
-  idUser: number;
+  idUser?: number;
 
   @ApiProperty({
     enum: BillingStatus,
