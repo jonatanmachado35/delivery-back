@@ -1,56 +1,35 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-class DeliverymanDeliveriesStatsDto {
-  @ApiProperty({ description: 'Entregas pendentes/aguardando coleta' })
-  pending: number;
+class DeliverymanMonthlyStatsDto {
+  @ApiProperty({ description: 'Mês no formato YYYY-MM' })
+  month: string;
 
-  @ApiProperty({ description: 'Entregas concluídas hoje' })
-  completed: number;
+  @ApiProperty({ description: 'Total de entregas no mês' })
+  deliveries: number;
 
-  @ApiPropertyOptional({ description: 'Total de entregas' })
-  total?: number;
-}
-
-class DeliverymanEarningsStatsDto {
-  @ApiProperty({ description: 'Ganhos do dia em reais' })
-  today: number;
-
-  @ApiPropertyOptional({ description: 'Ganhos da semana' })
-  week?: number;
-
-  @ApiPropertyOptional({ description: 'Ganhos do mês' })
-  month?: number;
-
-  @ApiPropertyOptional({ description: 'Meta de ganhos' })
-  goal?: number;
-}
-
-class DeliverymanPerformanceStatsDto {
-  @ApiProperty({ description: 'Tempo médio de entrega em minutos' })
-  averageDeliveryTime: number;
-
-  @ApiPropertyOptional({ description: 'Avaliação média' })
-  rating?: number;
-}
-
-class DeliverymanBalanceStatsDto {
-  @ApiProperty({ description: 'Saldo disponível para saque' })
-  available: number;
-
-  @ApiPropertyOptional({ description: 'Saldo pendente' })
-  pending?: number;
+  @ApiProperty({ description: 'Ganhos no mês em reais' })
+  earnings: number;
 }
 
 export class DeliverymanStatsResponseDto {
-  @ApiProperty({ type: DeliverymanDeliveriesStatsDto })
-  deliveries: DeliverymanDeliveriesStatsDto;
+  @ApiProperty({ description: 'Total de entregas' })
+  totalDeliveries: number;
 
-  @ApiProperty({ type: DeliverymanEarningsStatsDto })
-  earnings: DeliverymanEarningsStatsDto;
+  @ApiProperty({ description: 'Entregas concluídas' })
+  completedDeliveries: number;
 
-  @ApiProperty({ type: DeliverymanPerformanceStatsDto })
-  performance: DeliverymanPerformanceStatsDto;
+  @ApiProperty({ description: 'Entregas pendentes' })
+  pendingDeliveries: number;
 
-  @ApiProperty({ type: DeliverymanBalanceStatsDto })
-  balance: DeliverymanBalanceStatsDto;
+  @ApiProperty({ description: 'Entregas canceladas' })
+  cancelledDeliveries: number;
+
+  @ApiProperty({ description: 'Ganhos totais em reais' })
+  totalEarnings: number;
+
+  @ApiProperty({ description: 'Avaliação média' })
+  averageRating: number;
+
+  @ApiPropertyOptional({ type: [DeliverymanMonthlyStatsDto] })
+  monthlyStats?: DeliverymanMonthlyStatsDto[];
 }

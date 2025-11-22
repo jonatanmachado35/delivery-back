@@ -7,6 +7,7 @@ import {
 import { DeliveryStatus, Prisma, Role, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeliverymanStatsResponseDto } from './dto/deliveryman-stats-response.dto';
+import { DeliverymanReportsResponseDto } from './dto/deliveryman-reports-response.dto';
 
 @Injectable()
 export class DeliverymanService {
@@ -16,6 +17,151 @@ export class DeliverymanService {
     deliverymanParamId: number,
     requester: Pick<User, 'id' | 'role'>,
   ): Promise<DeliverymanStatsResponseDto> {
+    const deliveryman = await this.ensureAccess(deliverymanParamId, requester);
+
+    const [totalDeliveries, completedDeliveries, pendingDeliveries, cancelledDeliveries, totalEarnings, monthlyStats] =
+      await Promise.all([
+        this.prisma.delivery.count({
+          where: { deliveryManId: deliveryman.id },
+        }),
+        this.prisma.delivery.count({
+          where: {
+            deliveryManId: deliveryman.id,
+            status: DeliveryStatus.COMPLETED,
+          },
+        }),
+        this.prisma.delivery.count({
+          where: {
+            deliveryManId: deliveryman.id,
+            status: { in: [DeliveryStatus.PENDING, DeliveryStatus.IN_PROGRESS] },
+          },
+        }),
+        this.prisma.delivery.count({
+          where: {
+            deliveryManId: deliveryman.id,
+            status: DeliveryStatus.CANCELED,
+          },
+        }),
+        this.sumCompletedAmount(deliveryman.id),
+        this.getMonthlyStats(deliveryman.id),
+      ]);
+
+    return {
+      totalDeliveries,
+      completedDeliveries,
+      pendingDeliveries,
+      cancelledDeliveries,
+      totalEarnings,
+      averageRating: 0,
+      monthlyStats,
+    };
+  }
+
+  async getReports(
+    deliverymanParamId: number,
+    requester: Pick<User, 'id' | 'role'>,
+  ): Promise<DeliverymanReportsResponseDto> {
+    const deliveryman = await this.ensureAccess(deliverymanParamId, requester);
+
+    const now = new Date();
+    const startOfWeek = this.getStartOfWeek(now);
+    const endOfWeek = this.getEndOfWeek(startOfWeek);
+
+    const deliveries = await this.prisma.delivery.findMany({
+      where: {
+        deliveryManId: deliveryman.id,
+        createdAt: {
+          gte: startOfWeek,
+          lte: endOfWeek,
+        },
+      },
+      select: {
+        id: true,
+        code: true,
+        status: true,
+        price: true,
+        information: true,
+        createdAt: true,
+        completedAt: true,
+        ClientAddress: {
+          select: {
+            street: true,
+            number: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            complement: true,
+          },
+        },
+        Company: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const weekTemplate = this.buildEmptyWeeklyStats();
+
+    let totalEarnings = 0;
+    let totalDeliveries = 0;
+    let completedDeliveries = 0;
+    let pendingDeliveries = 0;
+
+    const mappedDeliveries = deliveries.map((delivery) => {
+      const dayKey = this.getDayKey(delivery.createdAt);
+      const normalizedStatus = this.normalizeStatus(delivery.status);
+      const value = this.toNumber(delivery.price);
+
+      totalDeliveries += 1;
+      if (normalizedStatus === 'completed') {
+        completedDeliveries += 1;
+        totalEarnings += value;
+      } else {
+        pendingDeliveries += 1;
+      }
+
+      const daily = weekTemplate[dayKey];
+      const bucketIndex = this.getHourBucket(delivery.createdAt);
+      daily.hourlyData[bucketIndex] += 1;
+      daily.totalDeliveries += 1;
+      if (normalizedStatus === 'completed') {
+        daily.completedDeliveries += 1;
+      } else {
+        daily.pendingDeliveries += 1;
+      }
+
+      return {
+        id: String(delivery.id),
+        code: delivery.code,
+        status: normalizedStatus,
+        day: dayKey,
+        customerName: delivery.Company?.name ?? 'Cliente',
+        address: this.buildAddress(delivery.ClientAddress),
+        value,
+        createdAt: delivery.createdAt.toISOString(),
+        description: delivery.information,
+        date: delivery.createdAt.toISOString(),
+      };
+    });
+
+    return {
+      weeklyStats: weekTemplate,
+      summary: {
+        totalDeliveries,
+        completedDeliveries,
+        pendingDeliveries,
+        totalEarnings: this.round(totalEarnings),
+      },
+      deliveries: mappedDeliveries,
+    };
+  }
+
+  private async ensureAccess(
+    deliverymanParamId: number,
+    requester: Pick<User, 'id' | 'role'>,
+  ): Promise<{ id: number; userId: number }> {
     if (!Number.isInteger(deliverymanParamId) || deliverymanParamId <= 0) {
       throw new BadRequestException('Identificador do entregador inválido');
     }
@@ -41,109 +187,25 @@ export class DeliverymanService {
       throw new ForbiddenException('Acesso negado');
     }
 
-    const now = new Date();
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = new Date(now);
-    endOfToday.setHours(23, 59, 59, 999);
-
-    const startOfWeek = new Date(startOfToday);
-    startOfWeek.setDate(startOfWeek.getDate() - 6);
-
-    const startOfMonth = new Date(startOfToday);
-    startOfMonth.setDate(1);
-
-    const balancePromise = this.prisma.balance.findFirst({
-      where: {
-        User: {
-          some: {
-            id: deliveryman.userId,
-          },
-        },
-      },
-      select: {
-        amount: true,
-      },
-    });
-
-    const [
-      pendingDeliveries,
-      completedToday,
-      totalDeliveries,
-      todayEarnings,
-      weekEarnings,
-      monthEarnings,
-      averageDeliveryTime,
-      balance,
-    ] = await Promise.all([
-      this.prisma.delivery.count({
-        where: {
-          deliveryManId: deliveryman.id,
-          status: {
-            in: [DeliveryStatus.PENDING, DeliveryStatus.IN_PROGRESS],
-          },
-        },
-      }),
-      this.prisma.delivery.count({
-        where: {
-          deliveryManId: deliveryman.id,
-          status: DeliveryStatus.COMPLETED,
-          completedAt: {
-            gte: startOfToday,
-            lte: endOfToday,
-          },
-        },
-      }),
-      this.prisma.delivery.count({
-        where: {
-          deliveryManId: deliveryman.id,
-        },
-      }),
-      this.sumCompletedAmount(deliveryman.id, startOfToday, endOfToday),
-      this.sumCompletedAmount(deliveryman.id, startOfWeek, endOfToday),
-      this.sumCompletedAmount(deliveryman.id, startOfMonth, endOfToday),
-      this.calculateAverageDeliveryTime(deliveryman.id),
-      balancePromise,
-    ]);
-
-    const available = this.toNumber(balance?.amount);
-
-    return {
-      deliveries: {
-        pending: pendingDeliveries,
-        completed: completedToday,
-        total: totalDeliveries,
-      },
-      earnings: {
-        today: todayEarnings,
-        week: weekEarnings,
-        month: monthEarnings,
-        goal: 0,
-      },
-      performance: {
-        averageDeliveryTime,
-        rating: 0,
-      },
-      balance: {
-        available,
-        pending: 0,
-      },
-    };
+    return deliveryman;
   }
 
   private async sumCompletedAmount(
     deliverymanId: number,
-    start: Date,
-    end: Date,
+    start?: Date,
+    end?: Date,
   ): Promise<number> {
     const aggregate = await this.prisma.delivery.aggregate({
       where: {
         deliveryManId: deliverymanId,
         status: DeliveryStatus.COMPLETED,
-        completedAt: {
-          gte: start,
-          lte: end,
-        },
+        ...(start &&
+          end && {
+            completedAt: {
+              gte: start,
+              lte: end,
+            },
+          }),
       },
       _sum: {
         price: true,
@@ -179,6 +241,116 @@ export class DeliverymanService {
     }
 
     return this.round(seconds / 60);
+  }
+
+  private async getMonthlyStats(
+    deliverymanId: number,
+  ): Promise<DeliverymanStatsResponseDto['monthlyStats']> {
+    const rows =
+      await this.prisma.$queryRaw<
+        { month: string; deliveries: number; earnings: number }[]
+      >`
+        SELECT
+          TO_CHAR(date_trunc('month', "createdAt"), 'YYYY-MM') AS month,
+          COUNT(*)::int AS deliveries,
+          COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN price ELSE 0 END), 0)::float AS earnings
+        FROM "deliveries"
+        WHERE "deliveryManId" = ${deliverymanId}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `;
+
+    return rows.map((row) => ({
+      month: row.month,
+      deliveries: Number(row.deliveries) || 0,
+      earnings: this.round(Number(row.earnings) || 0),
+    }));
+  }
+
+  private buildEmptyWeeklyStats(): DeliverymanReportsResponseDto['weeklyStats'] {
+    const days = [
+      'sunday',
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+    ] as const;
+
+    return days.reduce(
+      (acc, day) => {
+        acc[day] = {
+          dayOfWeek: day,
+          hourlyData: [0, 0, 0, 0, 0, 0],
+          totalDeliveries: 0,
+          completedDeliveries: 0,
+          pendingDeliveries: 0,
+        };
+        return acc;
+      },
+      {} as DeliverymanReportsResponseDto['weeklyStats'],
+    );
+  }
+
+  private getDayKey(date: Date): keyof DeliverymanReportsResponseDto['weeklyStats'] {
+    const index = date.getDay();
+    const keys = [
+      'sunday',
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+    ] as const;
+    return keys[index];
+  }
+
+  private getHourBucket(date: Date): number {
+    const hour = date.getHours();
+    return Math.min(5, Math.floor(hour / 4));
+  }
+
+  private normalizeStatus(
+    status: DeliveryStatus,
+  ): 'completed' | 'pending' | 'in_progress' {
+    switch (status) {
+      case DeliveryStatus.COMPLETED:
+        return 'completed';
+      case DeliveryStatus.IN_PROGRESS:
+        return 'in_progress';
+      default:
+        return 'pending';
+    }
+  }
+
+  private buildAddress(address: {
+    street: string;
+    number: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    complement: string | null;
+  }): string {
+    const complement = address.complement?.trim();
+    const complementText = complement ? ` (${complement})` : '';
+    return `${address.street}, ${address.number}, ${address.city} - ${address.state} - ${address.zipCode}${complementText}`;
+  }
+
+  private getStartOfWeek(date: Date): Date {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const day = start.getDay();
+    start.setDate(start.getDate() - day);
+    return start;
+  }
+
+  private getEndOfWeek(startOfWeek: Date): Date {
+    const end = new Date(startOfWeek);
+    end.setDate(end.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return end;
   }
 
   private toNumber(value?: Prisma.Decimal | number | null): number {
