@@ -17,6 +17,7 @@ import { FileStorageService } from './file-storage/file-storage.service';
 import { jwtModuleConfig } from './config/jwt.config';
 import { DeliverymanDocumentModule } from './deliveryman-document/deliveryman-document.module';
 import { DeliverymanBankAccountModule } from './deliveryman-bank-account/deliveryman-bank-account.module';
+import { DeliverymanModule } from './deliveryman/deliveryman.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { DeliverymanBankAccountModule } from './deliveryman-bank-account/deliver
     DeliverymanBankAccountModule,
     BillingModule,
     FileStorageModule,
+    DeliverymanModule,
   ],
   controllers: [AppController],
   providers: [AppService, CacheService, LocationService, FileStorageService],
