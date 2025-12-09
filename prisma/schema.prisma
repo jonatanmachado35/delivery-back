@@ -25,6 +25,8 @@ model User {
   DeliveryMan DeliveryMan?
   Company     Company?
   Billing     Billing[]
+  SentNotifications     Notification[] @relation("NotificationSender")
+  ReceivedNotifications Notification[] @relation("NotificationRecipient")
   Avatar      File?        @relation("UserAvatar", fields: [avatarId], references: [id])
   avatarId    Int?         @unique @map("avatar_id")
 
@@ -69,11 +71,38 @@ model Company {
   @@map("companies")
 }
 
+model Notification {
+  id           Int                 @id @default(autoincrement())
+  type         NotificationType
+  status       NotificationStatus  @default(PENDING)
+  message      String
+  referenceKey String?             @map("reference_key")
+  recipientId  Int                 @map("recipient_id")
+  recipient    User                @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  senderId     Int?                @map("sender_id")
+  sender       User?               @relation("NotificationSender", fields: [senderId], references: [id])
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @default(now()) @updatedAt @map("updated_at")
+  readAt       DateTime?           @map("read_at")
+
+  @@index([recipientId], name: "notifications_recipient_idx")
+  @@map("notifications")
+}
+
 enum UserStatus {
   ACTIVE
   INACTIVE
   NO_DOCUMENTS
   BLOCKED
+}
+
+enum NotificationStatus {
+  PENDING
+  READ
+}
+
+enum NotificationType {
+  PAYMENT_SLIP_REQUEST
 }
 
 enum DeliverymanDocumentStatus {
