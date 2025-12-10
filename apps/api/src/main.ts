@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import type { OpenAPIObject } from '@nestjs/swagger';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { exceptionFactory } from './utils/fn';
 import helmet from 'helmet';
@@ -27,16 +26,19 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  const config: OpenAPIObject = {
-    ...new DocumentBuilder()
-      .setTitle('API')
-      .setDescription('Documentação da API')
-      .setVersion('1.0')
-      .build(),
-    paths: {},
-  };
+  const config = new DocumentBuilder()
+    .setTitle('API')
+    .setDescription('Documentação da API')
+    .setVersion('1.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' },
+      'Authorization',
+    )
+    .build();
 
-  const document = SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, config, {
+    deepScanRoutes: true,
+  });
 
   SwaggerModule.setup('docs', app, document);
 

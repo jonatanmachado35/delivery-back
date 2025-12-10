@@ -71,24 +71,6 @@ model Company {
   @@map("companies")
 }
 
-model Notification {
-  id           Int                 @id @default(autoincrement())
-  type         NotificationType
-  status       NotificationStatus  @default(PENDING)
-  message      String
-  referenceKey String?             @map("reference_key")
-  recipientId  Int                 @map("recipient_id")
-  recipient    User                @relation("NotificationRecipient", fields: [recipientId], references: [id])
-  senderId     Int?                @map("sender_id")
-  sender       User?               @relation("NotificationSender", fields: [senderId], references: [id])
-  createdAt    DateTime            @default(now()) @map("created_at")
-  updatedAt    DateTime            @default(now()) @updatedAt @map("updated_at")
-  readAt       DateTime?           @map("read_at")
-
-  @@index([recipientId], name: "notifications_recipient_idx")
-  @@map("notifications")
-}
-
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -101,10 +83,6 @@ enum NotificationStatus {
   READ
 }
 
-enum NotificationType {
-  PAYMENT_SLIP_REQUEST
-}
-
 enum DeliverymanDocumentStatus {
   PENDING
   APPROVED
@@ -114,6 +92,12 @@ enum DeliverymanDocumentStatus {
 enum DeliverymanDocumentType {
   RG
   CNH
+}
+
+enum NotificationActionStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model VehicleType {
@@ -151,6 +135,38 @@ model Extract {
   userId    Int?
 
   @@map("extracts")
+}
+
+enum NotificationType {
+  PAYMENT_SLIP_REQUEST
+  INFO
+  ALERT
+  ACTION
+  SYSTEM
+}
+
+model Notification {
+  id             Int                      @id @default(autoincrement())
+  title          String?
+  message        String
+  type           NotificationType         @default(INFO)
+  status         NotificationStatus       @default(PENDING)
+  requiresAction Boolean                  @default(false) @map("requires_action")
+  actionStatus   NotificationActionStatus @default(PENDING) @map("action_status")
+  metadata       Json?
+  link           String?
+  referenceKey   String?                  @map("reference_key")
+  recipientId    Int                      @map("recipient_id")
+  recipient      User                     @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  senderId       Int?                     @map("sender_id")
+  sender         User?                    @relation("NotificationSender", fields: [senderId], references: [id])
+  readAt         DateTime?                @map("read_at")
+  actionAt       DateTime?                @map("action_at")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @default(now()) @updatedAt @map("updated_at")
+
+  @@index([recipientId], name: "notifications_recipient_idx")
+  @@map("notifications")
 }
 
 enum ExtractType {
