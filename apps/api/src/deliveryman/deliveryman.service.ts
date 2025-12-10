@@ -4,10 +4,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DeliveryStatus, Prisma, Role, User } from '@prisma/client';
+import {
+  DeliveryStatus,
+  ExtractType,
+  Prisma,
+  Role,
+  User,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeliverymanStatsResponseDto } from './dto/deliveryman-stats-response.dto';
 import { DeliverymanReportsResponseDto } from './dto/deliveryman-reports-response.dto';
+import { DeliverymanBalanceResponseDto } from './dto/deliveryman-balance-response.dto';
 
 @Injectable()
 export class DeliverymanService {
@@ -180,6 +187,65 @@ export class DeliverymanService {
     };
   }
 
+  async getBalance(
+    deliverymanParamId: number,
+    requester: Pick<User, 'id' | 'role'>,
+  ): Promise<DeliverymanBalanceResponseDto> {
+    const deliveryman = await this.ensureAccess(deliverymanParamId, requester);
+
+    const [balance, totalEarnedAgg, totalWithdrawnAgg, extracts] =
+      await Promise.all([
+        this.prisma.balance.findFirst({
+          where: {
+            User: {
+              some: { id: deliveryman.userId },
+            },
+          },
+          select: { amount: true },
+        }),
+        this.prisma.delivery.aggregate({
+          where: {
+            deliveryManId: deliveryman.id,
+            status: DeliveryStatus.COMPLETED,
+          },
+          _sum: { price: true },
+        }),
+        this.prisma.extract.aggregate({
+          where: {
+            userId: deliveryman.userId,
+            type: { in: [ExtractType.WITHDRAW, ExtractType.DEBIT] },
+          },
+          _sum: { amount: true },
+        }),
+        this.prisma.extract.findMany({
+          where: { userId: deliveryman.userId },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+      ]);
+
+    const totalEarned = this.toNumber(totalEarnedAgg._sum.price);
+    const totalWithdrawn = this.toNumber(totalWithdrawnAgg._sum.amount);
+
+    const transactions = extracts.map((item) => ({
+      id: item.id,
+      type: this.mapExtractType(item.type),
+      amount: this.toNumber(item.amount),
+      description: '',
+      status: 'completed',
+      pixKey: undefined,
+      createdAt: item.createdAt.toISOString(),
+    }));
+
+    return {
+      currentBalance: this.toNumber(balance?.amount),
+      totalEarned,
+      totalWithdrawn,
+      pendingBalance: 0,
+      transactions,
+    };
+  }
+
   private async ensureAccess(
     deliverymanParamId: number,
     requester: Pick<User, 'id' | 'role'>,
@@ -348,6 +414,14 @@ export class DeliverymanService {
       default:
         return 'pending';
     }
+  }
+
+  private mapExtractType(type: ExtractType): 'earning' | 'withdrawal' {
+    if ([ExtractType.DEPOSIT, ExtractType.CREDIT].includes(type)) {
+      return 'earning';
+    }
+
+    return 'withdrawal';
   }
 
   private buildAddress(address: {

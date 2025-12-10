@@ -13,6 +13,7 @@ import { User } from '@prisma/client';
 import { DeliverymanService } from './deliveryman.service';
 import { DeliverymanStatsResponseDto } from './dto/deliveryman-stats-response.dto';
 import { DeliverymanReportsResponseDto } from './dto/deliveryman-reports-response.dto';
+import { DeliverymanBalanceResponseDto } from './dto/deliveryman-balance-response.dto';
 
 @Controller('deliveryman')
 @ApiTags('Deliveryman')
@@ -46,5 +47,16 @@ export class DeliverymanController {
       startDate,
       endDate,
     );
+  }
+
+  @Get(':id/balance')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Retorna saldo e transações do entregador' })
+  @ApiResponse({ status: HttpStatus.OK, type: DeliverymanBalanceResponseDto })
+  getBalance(
+    @Param('id') id: string,
+    @Req() req: Request & { user: Pick<User, 'id' | 'role'> },
+  ): Promise<DeliverymanBalanceResponseDto> {
+    return this.deliverymanService.getBalance(Number(id), req.user);
   }
 }

@@ -10,8 +10,13 @@ import {
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { Logger } from '@nestjs/common';
-import { User } from '@prisma/client';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { DeliveryStatus, User } from '@prisma/client';
 
 @WebSocketGateway(2000, {
   namespace: 'gps',
@@ -159,5 +164,85 @@ export class GpsGateway
   @SubscribeMessage('message')
   handleMessage(): string {
     return 'Hello world!';
+  }
+
+  @SubscribeMessage('location')
+  async handleLocation(
+    client: Socket & { data?: User },
+    payload: { code?: string; latitude?: number; longitude?: number },
+  ): Promise<{ event: string; status: string }> {
+    const user = client.data;
+    if (!user) {
+      throw new ForbiddenException('Usuário não autenticado');
+    }
+
+    const { code, latitude, longitude } = payload ?? {};
+
+    if (!code || latitude === undefined || longitude === undefined) {
+      throw new BadRequestException('code, latitude e longitude são obrigatórios');
+    }
+
+    if (!this.isValidLatitude(latitude) || !this.isValidLongitude(longitude)) {
+      throw new BadRequestException('Latitude/Longitude inválidas');
+    }
+
+    const deliveryman = await this.prismaService.deliveryMan.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+
+    if (!deliveryman) {
+      throw new ForbiddenException('Entregador não encontrado para o usuário');
+    }
+
+    const delivery = await this.prismaService.delivery.findUnique({
+      where: { code },
+      select: {
+        id: true,
+        status: true,
+        deliveryManId: true,
+      },
+    });
+
+    if (!delivery) {
+      throw new NotFoundException('Entrega não encontrada');
+    }
+
+    if (delivery.deliveryManId !== deliveryman.id) {
+      throw new ForbiddenException('Entrega não atribuída a este entregador');
+    }
+
+    // Apenas aceita localização para entregas em andamento
+    if (delivery.status !== DeliveryStatus.IN_PROGRESS) {
+      throw new ForbiddenException('Entrega não está em andamento');
+    }
+
+    // Opcional: garantir que o socket esteja na sala do código
+    await client.join(code);
+
+    await this.prismaService.$queryRawUnsafe(
+      `
+      INSERT INTO "routes" (coord, delivery_id)
+      VALUES (ST_SetSRID(ST_MakePoint($1, $2), 4326), $3)
+      `,
+      longitude,
+      latitude,
+      delivery.id,
+    );
+
+    this.emitRoom(code, 'update-location', {
+      latitude,
+      longitude,
+    });
+
+    return { event: 'location', status: 'ok' };
+  }
+
+  private isValidLatitude(latitude: number): boolean {
+    return typeof latitude === 'number' && latitude >= -90 && latitude <= 90;
+  }
+
+  private isValidLongitude(longitude: number): boolean {
+    return typeof longitude === 'number' && longitude >= -180 && longitude <= 180;
   }
 }

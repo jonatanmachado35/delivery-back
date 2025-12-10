@@ -25,7 +25,8 @@ model User {
   DeliveryMan DeliveryMan?
   Company     Company?
   Billing     Billing[]
-  Notifications Notification[]
+  SentNotifications     Notification[] @relation("NotificationSender")
+  ReceivedNotifications Notification[] @relation("NotificationRecipient")
   Avatar      File?        @relation("UserAvatar", fields: [avatarId], references: [id])
   avatarId    Int?         @unique @map("avatar_id")
 
@@ -77,6 +78,11 @@ enum UserStatus {
   BLOCKED
 }
 
+enum NotificationStatus {
+  PENDING
+  READ
+}
+
 enum DeliverymanDocumentStatus {
   PENDING
   APPROVED
@@ -86,13 +92,6 @@ enum DeliverymanDocumentStatus {
 enum DeliverymanDocumentType {
   RG
   CNH
-}
-
-enum NotificationType {
-  INFO
-  ALERT
-  ACTION
-  SYSTEM
 }
 
 enum NotificationActionStatus {
@@ -138,23 +137,35 @@ model Extract {
   @@map("extracts")
 }
 
+enum NotificationType {
+  PAYMENT_SLIP_REQUEST
+  INFO
+  ALERT
+  ACTION
+  SYSTEM
+}
+
 model Notification {
-  id             Int                       @id @default(autoincrement())
-  title          String
+  id             Int                      @id @default(autoincrement())
+  title          String?
   message        String
-  type           NotificationType          @default(INFO)
-  requiresAction Boolean                   @default(false) @map("requires_action")
-  actionStatus   NotificationActionStatus  @default(PENDING) @map("action_status")
+  type           NotificationType         @default(INFO)
+  status         NotificationStatus       @default(PENDING)
+  requiresAction Boolean                  @default(false) @map("requires_action")
+  actionStatus   NotificationActionStatus @default(PENDING) @map("action_status")
   metadata       Json?
   link           String?
-  readAt         DateTime?                 @map("read_at")
-  actionAt       DateTime?                 @map("action_at")
-  createdAt      DateTime                  @default(now()) @map("created_at")
-  updatedAt      DateTime                  @default(now()) @updatedAt @map("updated_at")
-  userId         Int                       @map("user_id")
-  User           User                      @relation(fields: [userId], references: [id])
+  referenceKey   String?                  @map("reference_key")
+  recipientId    Int                      @map("recipient_id")
+  recipient      User                     @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  senderId       Int?                     @map("sender_id")
+  sender         User?                    @relation("NotificationSender", fields: [senderId], references: [id])
+  readAt         DateTime?                @map("read_at")
+  actionAt       DateTime?                @map("action_at")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @default(now()) @updatedAt @map("updated_at")
 
-  @@index([userId], name: "notifications_user_idx")
+  @@index([recipientId], name: "notifications_recipient_idx")
   @@map("notifications")
 }
 

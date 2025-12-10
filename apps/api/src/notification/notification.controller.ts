@@ -15,6 +15,7 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -27,6 +28,7 @@ import {
   NotificationPaginateResponse,
   UnreadCountResponseDto,
 } from './dto/notification-response.dto';
+import { PaymentSlipRequestDto } from './dto/payment-slip-request.dto';
 
 @ApiTags('Notifications')
 @ApiBearerAuth('Authorization')
@@ -59,6 +61,22 @@ export class NotificationController {
     @Req() req: Request & { user: User },
   ): Promise<UnreadCountResponseDto> {
     return this.notificationService.unreadCount(req.user);
+  }
+
+  @Post('payment-slip-request')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Cria notificação para o administrador gerar boleto de pagamento',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Notificação registrada com sucesso',
+  })
+  requestPaymentSlip(
+    @Body() body: PaymentSlipRequestDto,
+    @Req() req: Request & { user: User },
+  ): Promise<void> {
+    return this.notificationService.requestPaymentSlip(body, req.user);
   }
 
   @Patch(':id/read')

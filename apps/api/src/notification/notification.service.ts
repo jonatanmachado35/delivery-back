@@ -2,15 +2,19 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   Notification,
   NotificationActionStatus,
+  NotificationStatus,
   NotificationType,
   Prisma,
   Role,
   User,
+  UserStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { paginateResponse } from '../utils/fn';
@@ -21,9 +25,12 @@ import {
   NotificationPaginateResponse,
   UnreadCountResponseDto,
 } from './dto/notification-response.dto';
+import { PaymentSlipRequestDto } from './dto/payment-slip-request.dto';
 
 @Injectable()
 export class NotificationService {
+  private readonly logger = new Logger(NotificationService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async list(
@@ -35,13 +42,13 @@ export class NotificationService {
 
     const [notifications, total] = await Promise.all([
       this.prisma.notification.findMany({
-        where: { userId: user.id },
+        where: { recipientId: user.id },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
       this.prisma.notification.count({
-        where: { userId: user.id },
+        where: { recipientId: user.id },
       }),
     ]);
 
@@ -67,7 +74,7 @@ export class NotificationService {
   async unreadCount(user: Pick<User, 'id'>): Promise<UnreadCountResponseDto> {
     const total = await this.prisma.notification.count({
       where: {
-        userId: user.id,
+        recipientId: user.id,
         readAt: null,
       },
     });
@@ -87,7 +94,7 @@ export class NotificationService {
 
     const updated = await this.prisma.notification.update({
       where: { id: notification.id },
-      data: { readAt: new Date() },
+      data: { readAt: new Date(), status: NotificationStatus.READ },
     });
 
     return this.toResponse(updated);
@@ -113,6 +120,7 @@ export class NotificationService {
         actionStatus: NotificationActionStatus.APPROVED,
         actionAt: new Date(),
         readAt: notification.readAt ?? new Date(),
+        status: NotificationStatus.READ,
       },
     });
 
@@ -139,6 +147,7 @@ export class NotificationService {
         actionStatus: NotificationActionStatus.REJECTED,
         actionAt: new Date(),
         readAt: notification.readAt ?? new Date(),
+        status: NotificationStatus.READ,
       },
     });
 
@@ -163,29 +172,88 @@ export class NotificationService {
         title: dto.title,
         message: dto.message,
         type: dto.type ?? NotificationType.INFO,
+        status: NotificationStatus.PENDING,
         requiresAction,
         actionStatus: requiresAction
           ? NotificationActionStatus.PENDING
           : NotificationActionStatus.APPROVED,
         metadata: (dto.metadata as Prisma.InputJsonValue) ?? undefined,
         link: dto.link ?? undefined,
-        userId: recipientId,
+        recipientId,
+        senderId: user.id,
       },
     });
 
     return this.toResponse(notification);
   }
 
-  private async findOwned(
-    id: number,
-    userId: number,
-  ): Promise<Notification> {
+  async requestPaymentSlip(
+    body: PaymentSlipRequestDto,
+    requester: Pick<User, 'id' | 'role'>,
+  ): Promise<void> {
+    if (requester.role !== Role.COMPANY) {
+      throw new UnauthorizedException(
+        'Somente lojistas podem solicitar boleto ao administrador.',
+      );
+    }
+
+    const admins = await this.prisma.user.findMany({
+      where: { role: Role.ADMIN, status: UserStatus.ACTIVE },
+      select: { id: true },
+    });
+
+    if (!admins.length) {
+      throw new NotFoundException(
+        'Nenhum administrador ativo disponível para receber notificações.',
+      );
+    }
+
+    const billingKey = body.billingKey?.trim() || undefined;
+
+    if (billingKey) {
+      const billing = await this.prisma.billing.findFirst({
+        where: { key: billingKey, userId: requester.id },
+        select: { id: true },
+      });
+
+      if (!billing) {
+        throw new NotFoundException(
+          'Fatura não encontrada para esse usuário ou chave.',
+        );
+      }
+    }
+
+    const message =
+      body.message?.trim() ||
+      'Solicitação de boleto para pagamento enviada pela loja.';
+    const title = 'Solicitação de boleto';
+
+    await this.prisma.notification.createMany({
+      data: admins.map((admin) => ({
+        type: NotificationType.PAYMENT_SLIP_REQUEST,
+        status: NotificationStatus.PENDING,
+        requiresAction: true,
+        actionStatus: NotificationActionStatus.PENDING,
+        message,
+        title,
+        referenceKey: billingKey,
+        recipientId: admin.id,
+        senderId: requester.id,
+      })),
+    });
+
+    this.logger.log(
+      `Solicitação de boleto registrada por user ${requester.id} para ${admins.length} admin(s)`,
+    );
+  }
+
+  private async findOwned(id: number, userId: number): Promise<Notification> {
     if (!Number.isInteger(id) || id <= 0) {
       throw new BadRequestException('Identificador da notificação é inválido');
     }
 
     const notification = await this.prisma.notification.findFirst({
-      where: { id, userId },
+      where: { id, recipientId: userId },
     });
 
     if (!notification) {
@@ -198,7 +266,7 @@ export class NotificationService {
   private toResponse(notification: Notification): NotificationDto {
     return {
       id: notification.id,
-      title: notification.title,
+      title: notification.title ?? 'Notificação',
       message: notification.message,
       type: notification.type,
       actionStatus: notification.actionStatus,
