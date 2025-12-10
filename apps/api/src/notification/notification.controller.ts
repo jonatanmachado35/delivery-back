@@ -10,7 +10,13 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { ApiCreatedResponse, ApiOkResponse, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Request } from 'express';
 import { User } from '@prisma/client';
 import { NotificationService } from './notification.service';
@@ -22,7 +28,9 @@ import {
   UnreadCountResponseDto,
 } from './dto/notification-response.dto';
 
-@Controller({ path: ['notifications', 'api/notifications'] })
+@ApiTags('Notifications')
+@ApiBearerAuth('Authorization')
+@Controller('notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
