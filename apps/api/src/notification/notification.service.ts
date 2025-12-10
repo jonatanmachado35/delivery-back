@@ -8,6 +8,7 @@ import {
   Notification,
   NotificationActionStatus,
   NotificationType,
+  Prisma,
   Role,
   User,
 } from '@prisma/client';
@@ -166,7 +167,7 @@ export class NotificationService {
         actionStatus: requiresAction
           ? NotificationActionStatus.PENDING
           : NotificationActionStatus.APPROVED,
-        metadata: dto.metadata ?? undefined,
+        metadata: (dto.metadata as Prisma.InputJsonValue) ?? undefined,
         link: dto.link ?? undefined,
         userId: recipientId,
       },
