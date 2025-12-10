@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import { IsInt, IsOptional, Min } from 'class-validator';
 
 export class NotificationQueryDto {
@@ -10,6 +11,7 @@ export class NotificationQueryDto {
     type: Number,
   })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -22,6 +24,7 @@ export class NotificationQueryDto {
     type: Number,
   })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @Type(() => Number)
   @IsInt()
   @Min(1)

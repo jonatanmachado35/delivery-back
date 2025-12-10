@@ -417,7 +417,7 @@ export class DeliverymanService {
   }
 
   private mapExtractType(type: ExtractType): 'earning' | 'withdrawal' {
-    if ([ExtractType.DEPOSIT, ExtractType.CREDIT].includes(type)) {
+    if (type === ExtractType.DEPOSIT || type === ExtractType.CREDIT) {
       return 'earning';
     }
 
