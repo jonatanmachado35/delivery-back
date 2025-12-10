@@ -25,6 +25,7 @@ model User {
   DeliveryMan DeliveryMan?
   Company     Company?
   Billing     Billing[]
+  Notifications Notification[]
   Avatar      File?        @relation("UserAvatar", fields: [avatarId], references: [id])
   avatarId    Int?         @unique @map("avatar_id")
 
@@ -87,6 +88,19 @@ enum DeliverymanDocumentType {
   CNH
 }
 
+enum NotificationType {
+  INFO
+  ALERT
+  ACTION
+  SYSTEM
+}
+
+enum NotificationActionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model VehicleType {
   id                Int       @id @default(autoincrement())
   type              String    @unique
@@ -122,6 +136,26 @@ model Extract {
   userId    Int?
 
   @@map("extracts")
+}
+
+model Notification {
+  id             Int                       @id @default(autoincrement())
+  title          String
+  message        String
+  type           NotificationType          @default(INFO)
+  requiresAction Boolean                   @default(false) @map("requires_action")
+  actionStatus   NotificationActionStatus  @default(PENDING) @map("action_status")
+  metadata       Json?
+  link           String?
+  readAt         DateTime?                 @map("read_at")
+  actionAt       DateTime?                 @map("action_at")
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime                  @default(now()) @updatedAt @map("updated_at")
+  userId         Int                       @map("user_id")
+  User           User                      @relation(fields: [userId], references: [id])
+
+  @@index([userId], name: "notifications_user_idx")
+  @@map("notifications")
 }
 
 enum ExtractType {
