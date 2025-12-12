@@ -15,6 +15,7 @@ import { DeliverymanDto } from './dto/deliverymen.dto';
 import { User } from '@prisma/client';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -30,6 +31,7 @@ export class AuthController {
       example: {
         user: { id: 1, username: 'exampleUser' },
         token: 'exampleToken',
+        refreshToken: 'exampleRefreshToken',
       },
     },
   })
@@ -39,9 +41,30 @@ export class AuthController {
     @Headers('User-agent') agent: string,
   ): Promise<{
     token: string;
+    refreshToken: string;
     user: User;
   }> {
     return this.authService.login(loginDto, isMobileDevice(agent));
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Renova o token de acesso usando o refresh token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tokens renovados',
+    schema: {
+      example: {
+        token: 'newAccessToken',
+        refreshToken: 'newRefreshToken',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Refresh token inválido' })
+  refresh(
+    @Body() body: RefreshTokenDto,
+  ): Promise<{ token: string; refreshToken: string }> {
+    return this.authService.refresh(body.refreshToken);
   }
 
   @Post('password/forgot')

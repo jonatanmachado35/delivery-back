@@ -31,6 +31,38 @@ export class AuthService {
     private locationService: LocationService,
   ) {}
 
+  private getRefreshJwtConfig(): {
+    secret: string;
+    expiresIn?: string | number;
+  } {
+    return {
+      secret: process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET,
+      expiresIn: process.env.JWT_REFRESH_EXPIRATION ?? '30d',
+    };
+  }
+
+  private async signAccessToken(userId: number): Promise<string> {
+    return this.jwtService.signAsync({ id: userId });
+  }
+
+  private async signRefreshToken(userId: number): Promise<string> {
+    const { secret, expiresIn } = this.getRefreshJwtConfig();
+    return this.jwtService.signAsync(
+      { id: userId, tokenType: 'refresh' },
+      { secret, expiresIn },
+    );
+  }
+
+  private async generateTokens(userId: number): Promise<{
+    token: string;
+    refreshToken: string;
+  }> {
+    return {
+      token: await this.signAccessToken(userId),
+      refreshToken: await this.signRefreshToken(userId),
+    };
+  }
+
   async signupCompany(company: CompanyDto): Promise<void> {
     const salt = await bcrypt.genSalt(12);
 
@@ -276,7 +308,7 @@ export class AuthService {
   async login(
     loginDto: LoginDto,
     isMobile: boolean,
-  ): Promise<{ token: string; user: User }> {
+  ): Promise<{ token: string; refreshToken: string; user: User }> {
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: {
@@ -368,10 +400,10 @@ export class AuthService {
         throw new UnauthorizedException('Credenciais inválidas');
       }
 
-      const payload = { id: user.id };
+      const tokens = await this.generateTokens(user.id);
 
       return {
-        token: await this.jwtService.signAsync(payload),
+        ...tokens,
         user: {
           id: user.id,
           email: user.email,
@@ -383,6 +415,57 @@ export class AuthService {
         } as unknown as User,
       };
     });
+  }
+
+  async refresh(
+    refreshToken: string,
+  ): Promise<{ token: string; refreshToken: string }> {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token inválido');
+    }
+
+    const { secret } = this.getRefreshJwtConfig();
+
+    try {
+      const payload = await this.jwtService.verifyAsync<{
+        id: number;
+        tokenType?: string;
+      }>(refreshToken, {
+        secret,
+      });
+
+      if (payload.tokenType !== 'refresh' || !payload.id) {
+        throw new UnauthorizedException('Refresh token inválido');
+      }
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.id },
+        select: {
+          id: true,
+          status: true,
+        },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('Usuário não encontrado');
+      }
+
+      if (user.status === UserStatus.BLOCKED) {
+        throw new UnauthorizedException('User is blocked');
+      }
+
+      if (user.status === UserStatus.INACTIVE) {
+        throw new UnauthorizedException('User is inactive');
+      }
+
+      return this.generateTokens(user.id);
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
+      throw new UnauthorizedException('Refresh token inválido');
+    }
   }
 
   async ensureUserEmail(dto: ForgotPasswordDto): Promise<void> {
