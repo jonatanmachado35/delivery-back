@@ -11,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CompanyDto } from './dto/company.dto';
 import { LocationService } from '../location/location.service';
+import type { SignOptions } from 'jsonwebtoken';
 import {
   Company,
   DeliveryMan,
@@ -33,11 +34,22 @@ export class AuthService {
 
   private getRefreshJwtConfig(): {
     secret: string;
-    expiresIn?: string | number;
+    expiresIn?: SignOptions['expiresIn'];
   } {
+    const secret =
+      process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET;
+
+    if (!secret) {
+      throw new Error('JWT refresh secret is not configured');
+    }
+
+    const expiresIn = process.env.JWT_REFRESH_EXPIRATION
+      ? (process.env.JWT_REFRESH_EXPIRATION as SignOptions['expiresIn'])
+      : ('30d' as SignOptions['expiresIn']);
+
     return {
-      secret: process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET,
-      expiresIn: process.env.JWT_REFRESH_EXPIRATION ?? '30d',
+      secret,
+      expiresIn,
     };
   }
 
