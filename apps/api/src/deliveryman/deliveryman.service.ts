@@ -18,7 +18,7 @@ import { DeliverymanBalanceResponseDto } from './dto/deliveryman-balance-respons
 
 @Injectable()
 export class DeliverymanService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async getStats(
     deliverymanParamId: number,
@@ -227,11 +227,17 @@ export class DeliverymanService {
     const totalEarned = this.toNumber(totalEarnedAgg._sum.price);
     const totalWithdrawn = this.toNumber(totalWithdrawnAgg._sum.amount);
 
+    console.log("getBalance called for deliveryman:", {
+      id: deliveryman.id,
+      currentBalance: balance?.amount,
+      totalEarned
+    });
+
     const transactions = extracts.map((item) => ({
       id: item.id,
       type: this.mapExtractType(item.type),
       amount: this.toNumber(item.amount),
-      description: '',
+      description: item.description || '',
       status: 'completed',
       pixKey: undefined,
       createdAt: item.createdAt.toISOString(),
@@ -243,6 +249,65 @@ export class DeliverymanService {
       totalWithdrawn,
       pendingBalance: 0,
       transactions,
+    };
+  }
+
+  async withdraw(
+    deliverymanParamId: number,
+    requester: Pick<User, 'id' | 'role'>,
+    body: { amount: number; pixKey?: string },
+  ): Promise<{ id: number; amount: number; newBalance: number; status: string }> {
+    const deliveryman = await this.ensureAccess(deliverymanParamId, requester);
+
+    const balance = await this.prisma.balance.findFirst({
+      where: {
+        User: {
+          some: { id: deliveryman.userId },
+        },
+      },
+      select: { id: true, amount: true },
+    });
+
+    if (!balance) {
+      throw new BadRequestException('Saldo não encontrado');
+    }
+
+    const currentBalance = this.toNumber(balance.amount);
+
+    if (currentBalance < body.amount) {
+      throw new BadRequestException('Saldo insuficiente para saque');
+    }
+
+    // Execute withdrawal in transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update balance
+      const updatedBalance = await tx.balance.update({
+        where: { id: balance.id },
+        data: {
+          amount: {
+            decrement: body.amount,
+          },
+        },
+      });
+
+      // Create extract entry
+      const extract = await tx.extract.create({
+        data: {
+          amount: body.amount,
+          type: ExtractType.WITHDRAW,
+          description: `Saque via PIX${body.pixKey ? ` - ${body.pixKey}` : ''}`,
+          userId: deliveryman.userId,
+        },
+      });
+
+      return { extract, updatedBalance };
+    });
+
+    return {
+      id: result.extract.id,
+      amount: body.amount,
+      newBalance: this.toNumber(result.updatedBalance.amount),
+      status: 'completed',
     };
   }
 
@@ -289,11 +354,11 @@ export class DeliverymanService {
         status: DeliveryStatus.COMPLETED,
         ...(start &&
           end && {
-            completedAt: {
-              gte: start,
-              lte: end,
-            },
-          }),
+          completedAt: {
+            gte: start,
+            lte: end,
+          },
+        }),
       },
       _sum: {
         price: true,

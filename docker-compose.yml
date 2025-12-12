@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: minha_app
+    restart: always
+    env_file:
+      - .env
+    environment:
+      # Ajuste conforme sua app usa
+      DATABASE_URL: postgresql://postgres:mysecretpassword@postgres:5432/quick
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: myredispassword
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      # Porta externa:interna (ajuste a externa se quiser usar 80 ou 3000)
+      - "3000:3000"
+    networks:
+      - minha_rede
+
+  postgres:
+    image: postgis/postgis:15-3.4  # Mantive seu PostGIS; se não precisar, pode usar postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: quick
+    # Em produção, evite expor o banco para fora se não precisar
+    # Remova esta linha se for acessar só pelo Docker:
+    # ports:
+    #   - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - minha_rede
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    command: [ "redis-server", "--requirepass", "myredispassword", "--appendonly", "yes" ]
+    volumes:
+      - redis_data:/data
+    # Em produção, também é melhor não expor a porta se só o app consome
+    # ports:
+    #   - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "myredispassword", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - minha_rede
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  minha_rede:
+    driver: bridge

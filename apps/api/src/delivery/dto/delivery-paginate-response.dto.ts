@@ -49,6 +49,12 @@ export class AddressResponseDto {
 
 export class DeliveryPaginate {
   @ApiProperty({
+    description: 'ID da entrega',
+    example: 1,
+  })
+  id: number;
+
+  @ApiProperty({
     description: 'Código único da entrega',
     example: 'JT-VJ2k',
   })

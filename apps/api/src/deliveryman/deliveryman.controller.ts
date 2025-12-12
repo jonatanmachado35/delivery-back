@@ -1,9 +1,11 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  Post,
   Query,
   Req,
 } from '@nestjs/common';
@@ -14,11 +16,12 @@ import { DeliverymanService } from './deliveryman.service';
 import { DeliverymanStatsResponseDto } from './dto/deliveryman-stats-response.dto';
 import { DeliverymanReportsResponseDto } from './dto/deliveryman-reports-response.dto';
 import { DeliverymanBalanceResponseDto } from './dto/deliveryman-balance-response.dto';
+import { WithdrawRequestDto, WithdrawResponseDto } from './dto/withdraw.dto';
 
 @Controller('deliveryman')
 @ApiTags('Deliveryman')
 export class DeliverymanController {
-  constructor(private deliverymanService: DeliverymanService) {}
+  constructor(private deliverymanService: DeliverymanService) { }
 
   @Get(':id/stats')
   @HttpCode(HttpStatus.OK)
@@ -58,5 +61,17 @@ export class DeliverymanController {
     @Req() req: Request & { user: Pick<User, 'id' | 'role'> },
   ): Promise<DeliverymanBalanceResponseDto> {
     return this.deliverymanService.getBalance(Number(id), req.user);
+  }
+
+  @Post(':id/withdraw')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Realiza saque do saldo do entregador' })
+  @ApiResponse({ status: HttpStatus.OK, type: WithdrawResponseDto })
+  withdraw(
+    @Param('id') id: string,
+    @Body() body: WithdrawRequestDto,
+    @Req() req: Request & { user: Pick<User, 'id' | 'role'> },
+  ): Promise<WithdrawResponseDto> {
+    return this.deliverymanService.withdraw(Number(id), req.user, body);
   }
 }

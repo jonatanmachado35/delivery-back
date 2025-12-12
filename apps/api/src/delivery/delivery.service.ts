@@ -8,12 +8,12 @@ import { DeliverySimulateDto } from "./dto/delivery-simulate.dto"
 import { PrismaService } from "../prisma/prisma.service"
 import { VehicleTypeService } from "../vehicle-type/vehicle-type.service"
 import { LocationService } from "../location/location.service"
-import { DeliveryStatus, Prisma, Role, User, VehicleType } from "@prisma/client"
+import { DeliveryStatus, ExtractType, Prisma, Role, User, VehicleType } from "@prisma/client"
 import { createCode, paginateResponse } from "../utils/fn"
 import { CacheService } from "../cache/cache.service"
 import { DeliverySimulationResponseDto } from "./dto/delivery-simulation-response.dto"
 import { DeliveryQueryParams } from "./dto/filters.dto"
-import {DeliveryPaginate, DeliveryPaginateResponse } from "./dto/delivery-paginate-response.dto"
+import { DeliveryPaginate, DeliveryPaginateResponse } from "./dto/delivery-paginate-response.dto"
 import { DeliveryStatusUpdateDto, DeliveryStatusUpdateResponseDto } from "./dto/delivery-status-update.dto"
 
 @Injectable()
@@ -23,7 +23,7 @@ export class DeliveryService {
     private vehicleType: VehicleTypeService,
     private locationService: LocationService,
     private cacheService: CacheService
-  ) {}
+  ) { }
 
   async paginate(
     filter: DeliveryQueryParams,
@@ -89,7 +89,6 @@ export class DeliveryService {
         skip: (page - 1) * limit,
         take: limit,
         omit: {
-          id: true,
           idClientAddress: true,
           idOriginAddress: true,
           createdAt: true,
@@ -126,17 +125,17 @@ export class DeliveryService {
   ): Promise<DeliverySimulationResponseDto> {
     const companyLocalization = body.useAddressCompany
       ? await this.locationService.getAddressLocalizationByUser(
-          this.prismaService,
-          idUser,
-          "companies"
-        )
+        this.prismaService,
+        idUser,
+        "companies"
+      )
       : await this.locationService.reverse(
-          body.address.city,
-          body.address.state,
-          body.address.street,
-          body.address.number,
-          body.address.zipCode
-        )
+        body.address.city,
+        body.address.state,
+        body.address.street,
+        body.address.number,
+        body.address.zipCode
+      )
 
     const key = `simulate:${body.vehicleType}:${companyLocalization.longitude}:${companyLocalization.latitude}:${body.clientAddress.city}:${body.clientAddress.state}:${body.clientAddress.street}:${body.clientAddress.number}:${body.clientAddress.zipCode}`
     const cache = await this.cacheService.getValue(key)
@@ -344,6 +343,8 @@ export class DeliveryService {
     user: Pick<User, "id" | "role">,
     body: DeliveryStatusUpdateDto
   ): Promise<DeliveryStatusUpdateResponseDto> {
+    console.log("updateStatus CALLED", { deliveryId, status: body.status, userId: user.id });
+
     if (!Number.isInteger(deliveryId) || deliveryId <= 0) {
       throw new BadRequestException("Identificador da entrega inválido.")
     }
@@ -354,7 +355,7 @@ export class DeliveryService {
 
     const deliveryman = await this.prismaService.deliveryMan.findUnique({
       where: { userId: user.id },
-      select: { id: true },
+      select: { id: true, userId: true },
     })
 
     if (!deliveryman) {
@@ -368,6 +369,7 @@ export class DeliveryService {
         code: true,
         status: true,
         deliveryManId: true,
+        price: true,
       },
     })
 
@@ -375,35 +377,82 @@ export class DeliveryService {
       throw new NotFoundException("Entrega não encontrada.")
     }
 
-    if (delivery.deliveryManId !== deliveryman.id) {
+    // Verify ownership only if NOT pending (if pending, anyone can "claim" it)
+    if (delivery.status !== DeliveryStatus.PENDING && delivery.deliveryManId !== deliveryman.id) {
       throw new ForbiddenException("Esta entrega não está atribuída a você.")
     }
 
     const newStatus = this.mapIncomingStatus(body.status)
     this.ensureValidTransition(delivery.status, newStatus)
 
-    const data: Prisma.DeliveryUpdateInput = {
-      status: newStatus,
-      completedAt:
-        newStatus === DeliveryStatus.COMPLETED ? new Date() : null,
-    }
+    const result = await this.prismaService.$transaction(async (tx) => {
+      const data: Prisma.DeliveryUpdateInput = {
+        status: newStatus,
+        completedAt:
+          newStatus === DeliveryStatus.COMPLETED ? new Date() : null,
+        // If we are starting the delivery (PENDING -> IN_PROGRESS), assign it to this user
+        ...(delivery.status === DeliveryStatus.PENDING && newStatus === DeliveryStatus.IN_PROGRESS ? {
+          deliveryManId: deliveryman.id
+        } : {})
+      }
 
-    const updated = await this.prismaService.delivery.update({
-      where: { id: deliveryId },
-      data,
-      select: {
-        id: true,
-        code: true,
-        status: true,
-        completedAt: true,
-      },
+      const updated = await tx.delivery.update({
+        where: { id: deliveryId },
+        data,
+        select: {
+          id: true,
+          code: true,
+          status: true,
+          completedAt: true,
+        },
+      })
+
+      // If delivery is completed, update balance and create extract
+      if (newStatus === DeliveryStatus.COMPLETED) {
+        console.log("Delivery completed. Updating balance...", { deliveryId, price: delivery.price, userId: deliveryman.userId })
+
+        const userWithBalance = await tx.user.findUnique({
+          where: { id: deliveryman.userId },
+          select: { balanceId: true },
+        })
+
+        console.log("User found for balance update:", userWithBalance)
+
+        if (userWithBalance?.balanceId) {
+          // Update Balance
+          const balanceUpdate = await tx.balance.update({
+            where: { id: userWithBalance.balanceId },
+            data: {
+              amount: {
+                increment: delivery.price,
+              },
+            },
+          })
+          console.log("Balance updated:", balanceUpdate)
+
+          // Create Extract
+          await tx.extract.create({
+            data: {
+              amount: delivery.price,
+              type: ExtractType.CREDIT, // Credit for the delivery man
+              userId: deliveryman.userId,
+              description: `Entrega ${updated.code} concluída`,
+            },
+          })
+          console.log("Extract created")
+        } else {
+          console.error("User has no balanceId!", deliveryman.userId)
+        }
+      }
+
+      return updated
     })
 
     return {
-      id: updated.id,
-      code: updated.code,
-      status: this.mapStatusToResponse(updated.status),
-      deliveredAt: updated.completedAt?.toISOString(),
+      id: result.id,
+      code: result.code,
+      status: this.mapStatusToResponse(result.status),
+      deliveredAt: result.completedAt?.toISOString(),
     }
   }
 
