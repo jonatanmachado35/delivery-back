@@ -31,7 +31,7 @@ import { PaymentSlipRequestDto } from './dto/payment-slip-request.dto';
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async list(
     user: Pick<User, 'id'>,
@@ -46,6 +46,29 @@ export class NotificationService {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
+        include: {
+          sender: {
+            select: {
+              id: true,
+              email: true,
+              role: true,
+              Company: {
+                select: {
+                  name: true,
+                  cnpj: true,
+                  phone: true,
+                },
+              },
+              DeliveryMan: {
+                select: {
+                  name: true,
+                  cpf: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
       }),
       this.prisma.notification.count({
         where: { recipientId: user.id },
@@ -263,7 +286,7 @@ export class NotificationService {
     return notification;
   }
 
-  private toResponse(notification: Notification): NotificationDto {
+  private toResponse(notification: any): NotificationDto {
     return {
       id: notification.id,
       title: notification.title ?? 'Notificação',
@@ -276,6 +299,27 @@ export class NotificationService {
       createdAt: notification.createdAt,
       link: notification.link,
       metadata: (notification.metadata as Record<string, unknown>) ?? null,
+      senderData: notification.sender
+        ? {
+          id: notification.sender.id,
+          email: notification.sender.email,
+          role: notification.sender.role,
+          company: notification.sender.Company
+            ? {
+              name: notification.sender.Company.name,
+              cnpj: notification.sender.Company.cnpj,
+              phone: notification.sender.Company.phone,
+            }
+            : undefined,
+          deliveryMan: notification.sender.DeliveryMan
+            ? {
+              name: notification.sender.DeliveryMan.name,
+              cpf: notification.sender.DeliveryMan.cpf,
+              phone: notification.sender.DeliveryMan.phone,
+            }
+            : undefined,
+        }
+        : null,
     };
   }
 }

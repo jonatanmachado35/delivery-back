@@ -7,9 +7,13 @@ import {
 import {
   DeliveryStatus,
   ExtractType,
+  NotificationActionStatus,
+  NotificationStatus,
+  NotificationType,
   Prisma,
   Role,
   User,
+  UserStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeliverymanStatsResponseDto } from './dto/deliveryman-stats-response.dto';
@@ -302,6 +306,40 @@ export class DeliverymanService {
 
       return { extract, updatedBalance };
     });
+
+    // Buscar informações do entregador para a notificação
+    const deliverymanUser = await this.prisma.user.findUnique({
+      where: { id: deliveryman.userId },
+      select: {
+        email: true,
+        DeliveryMan: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Criar notificação para todos os admins
+    const admins = await this.prisma.user.findMany({
+      where: { role: Role.ADMIN, status: UserStatus.ACTIVE },
+      select: { id: true },
+    });
+
+    if (admins.length > 0) {
+      await this.prisma.notification.createMany({
+        data: admins.map((admin) => ({
+          type: NotificationType.ACTION,
+          status: NotificationStatus.PENDING,
+          requiresAction: true,
+          actionStatus: NotificationActionStatus.PENDING,
+          title: 'Solicitação de Saque',
+          message: `${deliverymanUser?.DeliveryMan?.name || 'Entregador'} solicitou um saque de R$ ${body.amount.toFixed(2)}${body.pixKey ? ` para a chave PIX ${body.pixKey}` : ''}.`,
+          recipientId: admin.id,
+          senderId: deliveryman.userId,
+        })),
+      });
+    }
 
     return {
       id: result.extract.id,

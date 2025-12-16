@@ -73,6 +73,28 @@ export class NotificationDto {
     type: Object,
   })
   metadata?: Record<string, unknown> | null;
+
+  @ApiProperty({
+    description: 'Dados completos do remetente da notificação (Company ou DeliveryMan)',
+    required: false,
+    nullable: true,
+    type: Object,
+  })
+  senderData?: {
+    id: number;
+    email: string;
+    role: string;
+    company?: {
+      name: string;
+      cnpj: string;
+      phone: string;
+    };
+    deliveryMan?: {
+      name: string;
+      cpf: string;
+      phone: string;
+    };
+  } | null;
 }
 
 export class NotificationPaginateResponse extends Pagination<NotificationDto> {

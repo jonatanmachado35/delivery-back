@@ -9,7 +9,7 @@ import { Request, Response } from 'express';
 
 @Injectable()
 export class RateLimitMiddleware implements NestMiddleware {
-  constructor(private cache: CacheService) {}
+  constructor(private cache: CacheService) { }
 
   async use(req: Request, res: Response, next: () => void) {
     const key = [
@@ -23,26 +23,31 @@ export class RateLimitMiddleware implements NestMiddleware {
 
     if (!key) {
       throw new HttpException(
-        'Chave de rate limit não encontrada',
+        'Não foi possível identificar a origem da requisição',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
+
+    const RATE_LIMIT_MAX = 20; // Aumentado de 3 para 20
+    const RATE_LIMIT_WINDOW = 60; // Aumentado de 1 para 60 segundos
 
     const requests = +((await this.cache.getValue(`rate-limit:${key}`)) ?? 0);
 
-    if (requests >= 3) {
-      res.setHeader('X-RateLimit-Limit', 10);
+    if (requests >= RATE_LIMIT_MAX) {
+      res.setHeader('X-RateLimit-Limit', RATE_LIMIT_MAX);
       res.setHeader('X-RateLimit-Remaining', 0);
+      res.setHeader('X-RateLimit-Reset', RATE_LIMIT_WINDOW);
 
       throw new HttpException(
-        'Limite de requisições excedido',
+        'Limite de requisições excedido. Tente novamente em alguns segundos.',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
-    res.setHeader('X-RateLimit-Limit', 10);
-    res.setHeader('X-RateLimit-Remaining', 10 - (requests + 1));
-    await this.cache.setCache(`rate-limit:${key}`, `${requests + 1}`, 1);
+    res.setHeader('X-RateLimit-Limit', RATE_LIMIT_MAX);
+    res.setHeader('X-RateLimit-Remaining', RATE_LIMIT_MAX - (requests + 1));
+    res.setHeader('X-RateLimit-Reset', RATE_LIMIT_WINDOW);
+    await this.cache.setCache(`rate-limit:${key}`, `${requests + 1}`, RATE_LIMIT_WINDOW);
 
     next();
   }

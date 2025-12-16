@@ -51,6 +51,14 @@ export class AppModule {
       )
       .forRoutes('*');
 
-    consumer.apply(RateLimitMiddleware).forRoutes('*');
+    // Rate limiting aplicado em todas as rotas EXCETO /auth/refresh e /notifications
+    consumer
+      .apply(RateLimitMiddleware)
+      .exclude(
+        { path: '/auth/refresh', method: RequestMethod.POST }, // Excluir refresh para evitar 429 durante renovação
+        { path: '/notifications', method: RequestMethod.GET }, // Excluir notificações para evitar 429 durante polling
+        { path: '/', method: RequestMethod.GET },
+      )
+      .forRoutes('*');
   }
 }

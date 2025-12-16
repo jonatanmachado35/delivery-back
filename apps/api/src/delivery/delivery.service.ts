@@ -8,7 +8,7 @@ import { DeliverySimulateDto } from "./dto/delivery-simulate.dto"
 import { PrismaService } from "../prisma/prisma.service"
 import { VehicleTypeService } from "../vehicle-type/vehicle-type.service"
 import { LocationService } from "../location/location.service"
-import { DeliveryStatus, ExtractType, Prisma, Role, User, VehicleType } from "@prisma/client"
+import { DeliveryStatus, ExtractType, NotificationActionStatus, NotificationStatus, NotificationType, Prisma, Role, User, UserStatus, VehicleType } from "@prisma/client"
 import { createCode, paginateResponse } from "../utils/fn"
 import { CacheService } from "../cache/cache.service"
 import { DeliverySimulationResponseDto } from "./dto/delivery-simulation-response.dto"
@@ -440,6 +440,40 @@ export class DeliveryService {
             },
           })
           console.log("Extract created")
+
+          // Buscar informações do entregador para notificação
+          const deliverymanInfo = await tx.user.findUnique({
+            where: { id: deliveryman.userId },
+            select: {
+              email: true,
+              DeliveryMan: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          })
+
+          // Criar notificação para todos os admins sobre entrega concluída
+          const admins = await tx.user.findMany({
+            where: { role: Role.ADMIN, status: UserStatus.ACTIVE },
+            select: { id: true },
+          })
+
+          if (admins.length > 0) {
+            await tx.notification.createMany({
+              data: admins.map((admin) => ({
+                type: NotificationType.INFO,
+                status: NotificationStatus.READ,
+                requiresAction: false,
+                actionStatus: NotificationActionStatus.APPROVED,
+                title: 'Entrega Concluída',
+                message: `${deliverymanInfo?.DeliveryMan?.name || 'Entregador'} concluiu a entrega ${updated.code} no valor de R$ ${Number(delivery.price).toFixed(2)}.`,
+                recipientId: admin.id,
+                senderId: deliveryman.userId,
+              })),
+            })
+          }
         } else {
           console.error("User has no balanceId!", deliveryman.userId)
         }
