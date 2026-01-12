@@ -5,9 +5,11 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -17,6 +19,8 @@ import { DeliverymanStatsResponseDto } from './dto/deliveryman-stats-response.dt
 import { DeliverymanReportsResponseDto } from './dto/deliveryman-reports-response.dto';
 import { DeliverymanBalanceResponseDto } from './dto/deliveryman-balance-response.dto';
 import { WithdrawRequestDto, WithdrawResponseDto } from './dto/withdraw.dto';
+import { UpdateUserStatusDto } from '../user/dto/update-status.dto';
+import { AdminGuard } from '../admin/admin.guard';
 
 @Controller('deliveryman')
 @ApiTags('Deliveryman')
@@ -61,6 +65,18 @@ export class DeliverymanController {
     @Req() req: Request & { user: Pick<User, 'id' | 'role'> },
   ): Promise<DeliverymanBalanceResponseDto> {
     return this.deliverymanService.getBalance(Number(id), req.user);
+  }
+
+  @Patch(':id/status')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Atualiza o status do entregador' })
+  @ApiResponse({ status: HttpStatus.OK })
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateUserStatusDto,
+  ): Promise<void> {
+    await this.deliverymanService.updateStatus(Number(id), body);
   }
 
   @Post(':id/withdraw')

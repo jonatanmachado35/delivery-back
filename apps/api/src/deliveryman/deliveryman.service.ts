@@ -349,6 +349,40 @@ export class DeliverymanService {
     };
   }
 
+  async updateStatus(
+    deliverymanParamId: number,
+    body: { status: UserStatus; information?: string },
+  ): Promise<void> {
+    // Validate that deliveryman exists
+    const deliveryman = await this.prisma.deliveryMan.findFirst({
+      where: {
+        OR: [
+          { userId: deliverymanParamId },
+          { id: deliverymanParamId },
+        ],
+      },
+      select: {
+        id: true,
+        userId: true,
+      },
+    });
+
+    if (!deliveryman) {
+      throw new NotFoundException('Entregador não encontrado');
+    }
+
+    // Update the user's status
+    await this.prisma.user.update({
+      where: { id: deliveryman.userId },
+      data: {
+        status: body.status,
+        ...(body.information !== undefined && {
+          information: body.information,
+        }),
+      },
+    });
+  }
+
   private async ensureAccess(
     deliverymanParamId: number,
     requester: Pick<User, 'id' | 'role'>,

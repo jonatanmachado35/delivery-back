@@ -19,6 +19,7 @@ import { DeliverymanDocumentModule } from './deliveryman-document/deliveryman-do
 import { DeliverymanBankAccountModule } from './deliveryman-bank-account/deliveryman-bank-account.module';
 import { DeliverymanModule } from './deliveryman/deliveryman.module';
 import { NotificationModule } from './notification/notification.module';
+import { CompanyModule } from './company/company.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { NotificationModule } from './notification/notification.module';
     FileStorageModule,
     DeliverymanModule,
     NotificationModule,
+    CompanyModule,
   ],
   controllers: [AppController],
   providers: [AppService, CacheService, LocationService, FileStorageService],
