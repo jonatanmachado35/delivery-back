@@ -25,21 +25,29 @@ RUN npm run build
 # Etapa de runtime
 FROM node:20-alpine
 
+# Instalar OpenSSL necessário para Prisma
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 ENV NODE_ENV=production
 
-# 7. Reaproveitar o node_modules já com Prisma Client gerado
-COPY --from=build /app/node_modules ./node_modules
-
-# 8. Copiar package.json (por organização)
+# 7. Copiar package files
 COPY --from=build /app/package*.json ./
 
-# 9. Copiar apenas o build (dist) para runtime
+# 8. Copiar schema do Prisma
+COPY --from=build /app/prisma ./prisma
+
+# 9. Instalar APENAS dependências de produção
+RUN npm ci --omit=dev
+
+# 10. Gerar Prisma Client na arquitetura correta
+RUN npx prisma generate
+
+# 11. Copiar o build (dist)
 COPY --from=build /app/dist ./dist
 
-# 10. Porta da API
+# 12. Porta da API
 EXPOSE 3000
 
-# 11. Usar o mesmo script de produção que você usa localmente
-#     (conforme log: "npm run start:prod" -> "node dist/apps/api/main")
+# 13. Start da aplicação
 CMD ["npm", "run", "start:prod"]
