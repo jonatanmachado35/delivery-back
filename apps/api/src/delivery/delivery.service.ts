@@ -219,7 +219,7 @@ export class DeliveryService {
     idUser: number
   ): Promise<DeliveryCreateResponse> {
     return this.prismaService.$transaction(async (prisma) => {
-      const { price } = await this.simulateDelivery(body, idUser)
+      const { price, location } = await this.simulateDelivery(body, idUser)
 
       const clientAddress = await this.locationService.createAddress(
         prisma as PrismaService,
@@ -262,6 +262,7 @@ export class DeliveryService {
           weight: body.weight,
           information: body.information.trim(),
           price,
+          distance: location.distance,
           email: body.email.trim(),
           telefone: body.telefone.trim(),
           vehicleType: body.vehicleType,

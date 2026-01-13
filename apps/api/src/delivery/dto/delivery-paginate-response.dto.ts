@@ -89,6 +89,12 @@ export class DeliveryPaginate {
   weight?: number;
 
   @ApiProperty({
+    description: 'Distância da entrega em km',
+    example: 12.5,
+  })
+  distance?: number;
+
+  @ApiProperty({
     description: 'Informações adicionais sobre a entrega',
     example: 'Entregar no portão principal',
   })

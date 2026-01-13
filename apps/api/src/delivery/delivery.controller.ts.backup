@@ -26,7 +26,6 @@ import {
 import { DeliverySimulationResponseDto } from './dto/delivery-simulation-response.dto';
 import { DeliveryQueryParams } from './dto/filters.dto';
 import { DeliveryPaginateResponse } from './dto/delivery-paginate-response.dto';
-import { DeliveryPaginate } from './dto/delivery-paginate-response.dto';
 import {
   DeliveryStatusUpdateDto,
   DeliveryStatusUpdateResponseDto,
@@ -52,21 +51,6 @@ export class DeliveryController {
     const limit = Math.max(filter.limit ?? 100, 1);
 
     return this.deliveryService.paginate(filter, page, limit);
-  }
-
-
-  @Get(':code')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Busca entrega por código' })
-  @ApiOkResponse({
-    description: 'Detalhes da entrega',
-    type: DeliveryPaginate,
-  })
-  async findByCode(
-    @Param('code') code: string,
-    @Req() req: Request & { user: User },
-  ): Promise<DeliveryPaginate> {
-    return this.deliveryService.findByCode(code, req.user.id);
   }
 
   @Post('simulate')

@@ -356,6 +356,7 @@ model Delivery {
   width           Float?
   length          Float?
   weight          Float?
+  distance        Float?
   information     String
   isFragile       Boolean        @default(false)
   price           Decimal        @db.Decimal(15, 2)
