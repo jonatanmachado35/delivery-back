@@ -11,6 +11,7 @@ import {
   DeliverymanDocumentType,
   Role,
   User,
+  UserStatus,
 } from '@prisma/client';
 import { CreateDeliverymanDocumentDto } from './dto/create-deliveryman-document.dto';
 import { DeliverymanDocumentResponseDto } from './dto/deliveryman-document-response.dto';
@@ -139,6 +140,24 @@ export class DeliverymanDocumentService {
           },
           include: { File: true },
         });
+
+    // Atualiza status do usuário de NO_DOCUMENTS para INACTIVE após enviar documento
+    const userRecord = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { status: true },
+    });
+
+    if (userRecord?.status === UserStatus.NO_DOCUMENTS) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          status: UserStatus.INACTIVE,
+          information: `### Sistema
+- Documentos enviados
+- Aguardando aprovação`,
+        },
+      });
+    }
 
     return this.toResponse(document);
   }

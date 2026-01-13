@@ -420,6 +420,7 @@ export class AuthService {
           id: user.id,
           email: user.email,
           role: user.role,
+          status: user.status,
           Balance: user.Balance,
           Extract: user.Extract ?? [],
           Company: user.Company as unknown as Company,

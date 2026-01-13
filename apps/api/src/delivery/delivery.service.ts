@@ -30,6 +30,16 @@ export class DeliveryService {
     page: number,
     limit: number
   ): Promise<DeliveryPaginateResponse> {
+    // Se for entregador, buscar o DeliveryMan.id
+    let deliverymanId: number | null = null
+    if (filter.user.role === Role.DELIVERY) {
+      const deliveryman = await this.prismaService.deliveryMan.findUnique({
+        where: { userId: filter.user.id },
+        select: { id: true },
+      })
+      deliverymanId = deliveryman?.id || null
+    }
+
     const where: Prisma.DeliveryWhereInput = {
       ...(filter.user.role === Role.COMPANY && {
         Company: {
@@ -37,6 +47,14 @@ export class DeliveryService {
             idUser: filter.user.id,
           },
         },
+      }),
+      ...(filter.user.role === Role.DELIVERY && deliverymanId && {
+        OR: [
+          // Entregas PENDING (pool aberto)
+          { status: DeliveryStatus.PENDING },
+          // Entregas já atribuídas a este entregador
+          { deliveryManId: deliverymanId },
+        ],
       }),
       ...(filter.code && {
         code: {
@@ -316,6 +334,20 @@ export class DeliveryService {
                 state: true,
                 zipCode: true,
                 complement: true,
+              },
+            },
+          },
+        },
+        DeliveryMan: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            cpf: true,
+            Vehicle: {
+              select: {
+                licensePlate: true,
+                model: true,
               },
             },
           },
