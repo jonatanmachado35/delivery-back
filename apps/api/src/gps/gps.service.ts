@@ -8,7 +8,6 @@ import { CurrencyLocationDto } from './dto/currency-location.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { GpsGateway } from './gps.gateway';
 import { Delivery, DeliveryStatus } from '@prisma/client';
-import { SocketDto } from '../websocket/dto/socket.dto';
 import { ILocalization } from '../typing/location';
 
 @Injectable()
@@ -26,19 +25,10 @@ export class GpsService implements OnModuleInit {
     });
   }
 
-  async getLocation(code: string, socket: SocketDto): Promise<Delivery> {
-    const client = this.gpsWebsocket.getClient(socket.socketId ?? '');
-
-    if (!client) {
-      throw new NotFoundException(
-        `Cliente com socketId '${socket.socketId}' não foi encontrado`,
-      );
-    }
-
+  async getLocation(code: string): Promise<Delivery> {
     const delivery = await this.prisma.delivery.findUnique({
       where: { code },
       omit: {
-        createdAt: true,
         updatedAt: true,
       },
       include: {
@@ -63,8 +53,8 @@ export class GpsService implements OnModuleInit {
         `
       SELECT
         ST_X(coord::geometry) as longitude,
-        ST_Y(coord::geometry) as latitude 
-        FROM "routes" 
+        ST_Y(coord::geometry) as latitude
+        FROM "routes"
         WHERE delivery_id = $1
     `,
         delivery.id,
@@ -74,8 +64,14 @@ export class GpsService implements OnModuleInit {
         `
       SELECT
         ST_X(localization::geometry) as longitude,
-        ST_Y(localization::geometry) as latitude 
-        FROM "addresses" 
+        ST_Y(localization::geometry) as latitude,
+        street,
+        number,
+        city,
+        state,
+        "zipCode",
+        complement
+        FROM "addresses"
         WHERE id = $1
     `,
         delivery.idClientAddress,
@@ -84,17 +80,19 @@ export class GpsService implements OnModuleInit {
         `
       SELECT
         ST_X(localization::geometry) as longitude,
-        ST_Y(localization::geometry) as latitude 
-        FROM "addresses" 
+        ST_Y(localization::geometry) as latitude,
+        street,
+        number,
+        city,
+        state,
+        "zipCode",
+        complement
+        FROM "addresses"
         WHERE id = $1
     `,
         delivery.idOriginAddress,
       ),
     ]);
-
-    if (client) {
-      await this.gpsWebsocket.handleJoinRoom(client, code);
-    }
 
     (
       delivery as unknown as {

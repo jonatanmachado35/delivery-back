@@ -6,11 +6,9 @@ import {
   HttpStatus,
   Param,
   Patch,
-  Query,
 } from '@nestjs/common';
 import { CurrencyLocationDto } from './dto/currency-location.dto';
 import { GpsService } from './gps.service';
-import { SocketDto } from '../websocket/dto/socket.dto';
 
 @Controller('gps')
 export class GpsController {
@@ -18,11 +16,8 @@ export class GpsController {
 
   @Get('delivery/:code')
   @HttpCode(HttpStatus.OK)
-  async getLocation(
-    @Param('code') code: string,
-    @Query() socket: SocketDto,
-  ): Promise<any> {
-    return this.gpsService.getLocation(code, socket);
+  async getLocation(@Param('code') code: string): Promise<any> {
+    return this.gpsService.getLocation(code);
   }
 
   @Patch('delivery/:code')
