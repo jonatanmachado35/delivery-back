@@ -231,12 +231,6 @@ export class DeliverymanService {
     const totalEarned = this.toNumber(totalEarnedAgg._sum.price);
     const totalWithdrawn = this.toNumber(totalWithdrawnAgg._sum.amount);
 
-    console.log("getBalance called for deliveryman:", {
-      id: deliveryman.id,
-      currentBalance: balance?.amount,
-      totalEarned
-    });
-
     const transactions = extracts.map((item) => ({
       id: item.id,
       type: this.mapExtractType(item.type),

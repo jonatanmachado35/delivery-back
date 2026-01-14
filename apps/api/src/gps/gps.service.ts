@@ -28,10 +28,27 @@ export class GpsService implements OnModuleInit {
   async getLocation(code: string): Promise<Delivery> {
     const delivery = await this.prisma.delivery.findUnique({
       where: { code },
-      omit: {
-        updatedAt: true,
-      },
-      include: {
+      select: {
+        id: true,
+        code: true,
+        height: true,
+        width: true,
+        length: true,
+        weight: true,
+        distance: true,
+        information: true,
+        isFragile: true,
+        price: true,
+        email: true,
+        telefone: true,
+        status: true,
+        createdAt: true,
+        completedAt: true,
+        vehicleType: true,
+        companyId: true,
+        deliveryManId: true,
+        idClientAddress: true,
+        idOriginAddress: true,
         DeliveryMan: {
           select: {
             id: true,
@@ -98,19 +115,19 @@ export class GpsService implements OnModuleInit {
       delivery as unknown as {
         Routes: ILocalization[];
       }
-    ).Routes = routes;
+    ).Routes = routes || [];
 
     (
       delivery as unknown as {
-        ClientAddress: ILocalization;
+        ClientAddress: ILocalization | null;
       }
-    ).ClientAddress = clientAddress[0];
+    ).ClientAddress = clientAddress?.[0] || null;
 
     (
       delivery as unknown as {
-        OriginAddress: ILocalization;
+        OriginAddress: ILocalization | null;
       }
-    ).OriginAddress = originAddress[0];
+    ).OriginAddress = originAddress?.[0] || null;
 
     return delivery as unknown as Delivery;
   }

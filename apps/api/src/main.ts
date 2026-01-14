@@ -8,8 +8,20 @@ import helmet from 'helmet';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
+  // Configuração CORS - usa variável de ambiente em produção
+  const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
+    : ['http://localhost:3001'];
+
   app.enableCors({
-    origin: true, // Permite qualquer origem (ou especifique domains específicos)
+    origin: (origin, callback) => {
+      // Permite requisições sem origin (mobile apps, Postman, etc)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'), false);
+    },
     methods: ['GET', 'PATCH', 'POST', 'DELETE', 'PUT', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
     credentials: true,
@@ -17,10 +29,22 @@ async function bootstrap(): Promise<void> {
     optionsSuccessStatus: 204,
   });
 
+  // Configuração Helmet - desabilita CSP para Swagger funcionar
+  const isProduction = process.env.NODE_ENV === 'production';
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: 'cross-origin' },
       crossOriginEmbedderPolicy: false,
+      contentSecurityPolicy: isProduction
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              styleSrc: ["'self'", "'unsafe-inline'"],
+              imgSrc: ["'self'", 'data:', 'https:'],
+              scriptSrc: ["'self'", "'unsafe-inline'"],
+            },
+          }
+        : false,
     }),
   );
 
@@ -34,21 +58,24 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('API')
-    .setDescription('Documentação da API')
-    .setVersion('1.0')
-    .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' },
-      'Authorization',
-    )
-    .build();
+  // Swagger - pode ser desabilitado em produção via DISABLE_SWAGGER=true
+  if (process.env.DISABLE_SWAGGER !== 'true') {
+    const config = new DocumentBuilder()
+      .setTitle('API')
+      .setDescription('Documentação da API')
+      .setVersion('1.0')
+      .addBearerAuth(
+        { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' },
+        'Authorization',
+      )
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config, {
-    deepScanRoutes: true,
-  });
+    const document = SwaggerModule.createDocument(app, config, {
+      deepScanRoutes: true,
+    });
 
-  SwaggerModule.setup('docs', app, document);
+    SwaggerModule.setup('docs', app, document);
+  }
 
   const port = process.env.PORT ?? 3000;
 

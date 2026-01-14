@@ -106,15 +106,22 @@ export class DeliveryService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        omit: {
-          idClientAddress: true,
-          idOriginAddress: true,
-          createdAt: true,
-          updatedAt: true,
-          deliveryManId: true,
-          companyId: true,
-        },
-        include: {
+        select: {
+          id: true,
+          code: true,
+          height: true,
+          width: true,
+          length: true,
+          weight: true,
+          distance: true,
+          information: true,
+          isFragile: true,
+          price: true,
+          email: true,
+          telefone: true,
+          status: true,
+          completedAt: true,
+          vehicleType: true,
           Company: {
             select: {
               name: true,
@@ -258,7 +265,7 @@ export class DeliveryService {
       )
 
       if (!clientAddress || !originAddress) {
-        throw new Error("Failed to create addresses")
+        throw new BadRequestException("Falha ao criar endereços")
       }
 
       const vehicleType = await this.vehicleType.findOne(body.vehicleType)
@@ -311,7 +318,6 @@ export class DeliveryService {
   }
 
   async findByCode(code: string, userId: number): Promise<DeliveryPaginate> {
-    console.log(`findByCode called with code: ${code} and userId: ${userId}`)
     const delivery = await this.prismaService.delivery.findFirst({
       where: {
         code,
@@ -357,8 +363,6 @@ export class DeliveryService {
       },
     });
 
-    console.log("Delivery found:", delivery)
-
     if (!delivery) {
       throw new NotFoundException(`Delivery with code ${code} not found.`);
     }
@@ -376,8 +380,6 @@ export class DeliveryService {
     user: Pick<User, "id" | "role">,
     body: DeliveryStatusUpdateDto
   ): Promise<DeliveryStatusUpdateResponseDto> {
-    console.log("updateStatus CALLED", { deliveryId, status: body.status, userId: user.id });
-
     if (!Number.isInteger(deliveryId) || deliveryId <= 0) {
       throw new BadRequestException("Identificador da entrega inválido.")
     }
@@ -442,18 +444,14 @@ export class DeliveryService {
 
       // If delivery is completed, update balance and create extract
       if (newStatus === DeliveryStatus.COMPLETED) {
-        console.log("Delivery completed. Updating balance...", { deliveryId, price: delivery.price, userId: deliveryman.userId })
-
         const userWithBalance = await tx.user.findUnique({
           where: { id: deliveryman.userId },
           select: { balanceId: true },
         })
 
-        console.log("User found for balance update:", userWithBalance)
-
         if (userWithBalance?.balanceId) {
           // Update Balance
-          const balanceUpdate = await tx.balance.update({
+          await tx.balance.update({
             where: { id: userWithBalance.balanceId },
             data: {
               amount: {
@@ -461,18 +459,16 @@ export class DeliveryService {
               },
             },
           })
-          console.log("Balance updated:", balanceUpdate)
 
           // Create Extract
           await tx.extract.create({
             data: {
               amount: delivery.price,
-              type: ExtractType.CREDIT, // Credit for the delivery man
+              type: ExtractType.CREDIT,
               userId: deliveryman.userId,
               description: `Entrega ${updated.code} concluída`,
             },
           })
-          console.log("Extract created")
 
           // Buscar informações do entregador para notificação
           const deliverymanInfo = await tx.user.findUnique({
@@ -507,8 +503,6 @@ export class DeliveryService {
               })),
             })
           }
-        } else {
-          console.error("User has no balanceId!", deliveryman.userId)
         }
       }
 

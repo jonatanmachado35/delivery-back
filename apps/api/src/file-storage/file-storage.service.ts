@@ -23,11 +23,8 @@ export class FileStorageService implements OnModuleInit {
     ].filter((key) => !process.env[key]);
 
     if (notExists.length) {
-      // eslint-disable-next-line no-console
-      console.error(
-        `\n\n\n\x1b[33mEnvironment variables \x1b[31m${notExists.join(', ')}\x1b[33m not found\x1b[0m`,
-      );
-      process.exit();
+      this.logger.error(`Environment variables ${notExists.join(', ')} not found`);
+      throw new Error(`Missing required environment variables: ${notExists.join(', ')}`);
     }
   }
 

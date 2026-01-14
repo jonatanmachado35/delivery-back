@@ -40,8 +40,7 @@ export class Storage {
       }
       return result;
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error(error);
+      this.logger.error('Failed to upload file', error);
       throw error;
     }
   }
