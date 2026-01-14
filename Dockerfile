@@ -9,17 +9,19 @@ COPY package*.json ./
 # 2. Instalar dependências (dev + prod) para build e Prisma
 RUN npm ci
 
-# 3. Copiar schema do Prisma (ajuste o caminho se necessário)
-#    Aqui assumo que o schema está em ./prisma/schema.prisma
-COPY prisma ./prisma
+# 3. Copiar apenas o arquivo do Prisma primeiro para otimizar cache
+COPY prisma ./prisma/
 
-# 4. Gerar Prisma Client (gera @prisma/client com enums, tipos, etc.)
+# 4. Gerar Prisma Client (com o schema do build context)
 RUN npx prisma generate
 
-# 5. Copiar o restante do código da aplicação
+# 5. Copiar o restante do código (exceto o que estiver no .dockerignore)
 COPY . .
 
-# 6. Build da aplicação Nest
+# 6. Forçar nova geração do Prisma para garantir sincronia com os tipos TS
+RUN npx prisma generate
+
+# 7. Build da aplicação Nest
 RUN npm run build
 
 # Etapa de runtime
