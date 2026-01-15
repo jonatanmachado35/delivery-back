@@ -22,7 +22,8 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-quick}
+      # URL do banco com pool de conexões otimizado para produção
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-quick}?connection_limit=20&pool_timeout=10
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -42,6 +43,13 @@ services:
           memory: 512M
         reservations:
           memory: 256M
+    # Healthcheck para garantir que a app está funcionando
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   postgres:
     image: postgis/postgis:15-3.4
@@ -54,10 +62,10 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}" ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-quick}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     networks:
       - minha_rede
 
@@ -65,11 +73,11 @@ services:
     image: redis:7-alpine
     container_name: redis
     restart: always
-    command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes" ]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5

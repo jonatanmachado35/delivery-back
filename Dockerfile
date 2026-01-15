@@ -3,7 +3,7 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# 1. Copiar package.json e lock (ajuste se tiver pnpm/yarn)
+# 1. Copiar package.json e lock
 COPY package*.json ./
 
 # 2. Instalar dependências (dev + prod) para build e Prisma
@@ -33,23 +33,30 @@ RUN apk add --no-cache openssl
 WORKDIR /app
 ENV NODE_ENV=production
 
-# 7. Copiar package files
+# 8. Copiar package files
 COPY --from=build /app/package*.json ./
 
-# 8. Copiar schema do Prisma
+# 9. Copiar schema e migrações do Prisma
 COPY --from=build /app/prisma ./prisma
 
-# 9. Instalar APENAS dependências de produção
+# 10. Instalar APENAS dependências de produção
 RUN npm ci --omit=dev
 
-# 10. Gerar Prisma Client na arquitetura correta
+# 11. Gerar Prisma Client na arquitetura correta
 RUN npx prisma generate
 
-# 11. Copiar o build (dist)
+# 12. Copiar o build (dist)
 COPY --from=build /app/dist ./dist
 
-# 12. Porta da API
+# 13. Copiar e configurar o script de entrypoint
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# 14. Porta da API
 EXPOSE 3000
 
-# 13. Start da aplicação
+# 15. Entrypoint executa migrações antes de iniciar
+ENTRYPOINT ["docker-entrypoint.sh"]
+
+# 16. Comando padrão - iniciar a aplicação
 CMD ["npm", "run", "start:prod"]
