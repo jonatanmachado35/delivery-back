@@ -11,7 +11,7 @@ async function bootstrap(): Promise<void> {
   // Configuração CORS - usa variável de ambiente em produção
   const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
-    : ['http://localhost:3001'];
+    : ['http://localhost:3001', 'http://localhost:3000'];
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -37,13 +37,13 @@ async function bootstrap(): Promise<void> {
       crossOriginEmbedderPolicy: false,
       contentSecurityPolicy: isProduction
         ? {
-            directives: {
-              defaultSrc: ["'self'"],
-              styleSrc: ["'self'", "'unsafe-inline'"],
-              imgSrc: ["'self'", 'data:', 'https:'],
-              scriptSrc: ["'self'", "'unsafe-inline'"],
-            },
-          }
+          directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", 'data:', 'https:'],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+          },
+        }
         : false,
     }),
   );
