@@ -3,60 +3,46 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# 1. Copiar package.json e lock
+# 1. Copiar package.json e lock (ajuste se tiver pnpm/yarn)
 COPY package*.json ./
 
 # 2. Instalar dependências (dev + prod) para build e Prisma
 RUN npm ci
 
-# 3. Copiar apenas o arquivo do Prisma primeiro para otimizar cache
-COPY prisma ./prisma/
+# 3. Copiar schema do Prisma (ajuste o caminho se necessário)
+#    Aqui assumo que o schema está em ./prisma/schema.prisma
+COPY prisma ./prisma
 
-# 4. Gerar Prisma Client (com o schema do build context)
+# 4. Gerar Prisma Client (gera @prisma/client com enums, tipos, etc.)
 RUN npx prisma generate
 
-# 5. Copiar o restante do código (exceto o que estiver no .dockerignore)
+# 5. Copiar o restante do código da aplicação
 COPY . .
 
-# 6. Forçar nova geração do Prisma para garantir sincronia com os tipos TS
-RUN npx prisma generate
-
-# 7. Build da aplicação Nest
+# 6. Build da aplicação Nest
 RUN npm run build
 
 # Etapa de runtime
 FROM node:20-alpine
 
-# Instalar OpenSSL necessário para Prisma
-RUN apk add --no-cache openssl
-
 WORKDIR /app
 ENV NODE_ENV=production
 
-# 8. Copiar package files
+# 7. Reaproveitar o node_modules já com Prisma Client gerado
+COPY --from=build /app/node_modules ./node_modules
+
+# 8. Copiar package.json (por organização)
 COPY --from=build /app/package*.json ./
 
-# 9. Copiar schema e migrações do Prisma
+# 9. IMPORTANTE: Copiar a pasta prisma para poder rodar migrations
 COPY --from=build /app/prisma ./prisma
 
-# 10. Instalar APENAS dependências de produção
-RUN npm ci --omit=dev
-
-# 11. Gerar Prisma Client na arquitetura correta
-RUN npx prisma generate
-
-# 12. Copiar o build (dist)
+# 10. Copiar apenas o build (dist) para runtime
 COPY --from=build /app/dist ./dist
 
-# 13. Copiar e configurar o script de entrypoint
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# 14. Porta da API
+# 11. Porta da API
 EXPOSE 3000
 
-# 15. Entrypoint executa migrações antes de iniciar
-ENTRYPOINT ["docker-entrypoint.sh"]
-
-# 16. Comando padrão - iniciar a aplicação
+# 12. Usar o mesmo script de produção que você usa localmente
+#     (conforme log: "npm run start:prod" -> "node dist/apps/api/main")
 CMD ["npm", "run", "start:prod"]
