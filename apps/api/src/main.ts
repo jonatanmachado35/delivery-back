@@ -11,17 +11,10 @@ async function bootstrap(): Promise<void> {
   // Configuração CORS - usa variável de ambiente em produção
   const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
-    : ['http://localhost:3001', 'http://localhost:3000'];
+    : '*'; // Permite todas as origens em desenvolvimento
 
   app.enableCors({
-    origin: (origin, callback) => {
-      // Permite requisições sem origin (mobile apps, Postman, etc)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('Not allowed by CORS'), false);
-    },
+    origin: allowedOrigins,
     methods: ['GET', 'PATCH', 'POST', 'DELETE', 'PUT', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
     credentials: true,
